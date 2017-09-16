@@ -19,7 +19,7 @@ use File::Replace::DualHandle ();
 
 ## no critic (RequireArgUnpacking)
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 our @EXPORT_OK = qw/ replace replace2 /;
 our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
@@ -257,7 +257,8 @@ documentation and search the Internet for "atomic rename" for more details.
 
 =head2 Version
 
-This documentation describes version 0.02 of this module.
+This documentation describes version 0.03 of this module.
+B<This is a development version.>
 
 B<This is an alpha version.> While the module works and has a full test suite,
 I may still decide to change the API as I gain experience with it. I will try

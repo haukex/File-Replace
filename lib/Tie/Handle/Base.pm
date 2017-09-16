@@ -7,7 +7,7 @@ use warnings::register;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 ## no critic (RequireFinalReturn, RequireArgUnpacking)
 
@@ -149,7 +149,8 @@ functions; see the code for details.
 
 =back
 
-This documentation describes version 0.02 of this module.
+This documentation describes version 0.03 of this module.
+B<This is a development version.>
 
 =head2 Notes
 
