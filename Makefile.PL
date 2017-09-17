@@ -7,7 +7,7 @@ WriteMakefile(
 	LICENSE        => 'gpl_3',
 	VERSION_FROM   => 'lib/File/Replace.pm', # finds $VERSION
 	ABSTRACT_FROM  => 'lib/File/Replace.pm',
-	MIN_PERL_VERSION => '5.8.0',
+	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {
 		'meta-spec'  => { version => 2 },
 		resources    => {
@@ -51,10 +51,10 @@ WriteMakefile(
 	},
 	TEST_REQUIRES  => {
 		# CPAN
-		'Test::Fatal'            => 0,
+		'Test::Fatal'            => '0.014',
 		# Perl core modules
 		'Encode'                 => 0,
-		'Test::More'             => 0,
+		'Test::More'             => '1.302096',
 		'FindBin'                => 0,
 		# note I haven't included modules needed for author tests here
 	},

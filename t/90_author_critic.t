@@ -19,6 +19,16 @@ How to run coverage tests:
  make distclean
  rm -rf cover_db/
 
+Running tests on all Perl versions: Install the required Perl versions (see
+list below), note that some test failures in Perl <5.10 can be ignored. In each
+Perl version, install L<App::cpanminus|App::cpanminus> (may need to do this
+manually on Perls <5.8.9), then install L<Test::Fatal|Test::Fatal>, which
+should install dependencies like Test-Simple, as well as
+L<App::Prove|App::Prove> for ease of testing (can use C<perlbrew exec> as shown
+below for this). Then:
+
+ perlbrew exec --with 5.8.1,5.8.9,5.10.1,5.12.5,5.14.4,5.16.3,5.18.4,5.20.3,5.22.4,5.24.2,5.26.0 prove -l
+
 =end comment
 
 =head1 Author, Copyright, and License

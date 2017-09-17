@@ -5,7 +5,6 @@ use strict;
 use Carp;
 use warnings::register;
 use IO::Handle; # allow method calls on filehandles on older Perls
-use Hash::Util qw/lock_ref_keys/; # typo prevention
 use File::Temp qw/tempfile/;
 use File::Basename qw/fileparse/;
 use File::Spec::Functions qw/devnull/;
@@ -14,6 +13,15 @@ use Fcntl qw/S_IMODE/;
 use Exporter 'import';
 use File::Replace::SingleHandle ();
 use File::Replace::DualHandle ();
+BEGIN {
+	require Hash::Util;
+	# apparently this wasn't available until 0.06 / Perl 5.8.9
+	# since this is just for internal typo prevention,
+	# we can fake it when it's not available
+	if ($] ge '5.010' || defined &Hash::Util::lock_ref_keys)
+		{ Hash::Util->import('lock_ref_keys') }
+	else { *lock_ref_keys = sub {} }
+}
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
