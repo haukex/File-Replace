@@ -35,6 +35,7 @@ use Test::More tests=>11;
 
 ## no critic (RequireCarping)
 
+BEGIN { diag "This is Perl $] at $^X on $^O" }
 BEGIN {
 	use_ok('Tie::Handle::Base')
 		or BAIL_OUT("failed to use Tie::Handle::Base");
