@@ -102,7 +102,8 @@ ok open($fh2,'>>:raw:crlf',\(my $z="Foo\n")), 'open 2' or die $!;
 ok print($fh2 "Bar\n"), 'print 2';
 ok close($fh2), 'close 3';
 is $z, "Foo\nBar\x0D\x0A", 'scalar file 4';
-ok untie(*$fh2), 'untie';
+untie(*$fh2);
+ok !defined(tied(*$fh2)), 'untie';
 
 {
 	# author tests make warnings fatal, disable that here
