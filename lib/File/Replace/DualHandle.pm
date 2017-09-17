@@ -65,8 +65,12 @@ sub WRITE { Tie::Handle::Base::_WRITE(shift->{repl}->out_fh, @_) }  ## no critic
 
 sub BINMODE {
 	my $self = shift;
-	return ( @_ ? binmode($self->{repl}->in_fh, $_[0]) : binmode($self->{repl}->in_fh ) )
-	    && ( @_ ? binmode($self->{repl}->out_fh,$_[0]) : binmode($self->{repl}->out_fh) )
+	if (@_)
+		{ return binmode($self->{repl}->in_fh,  $_[0])
+		      && binmode($self->{repl}->out_fh, $_[0]) }
+	else
+		{ return binmode($self->{repl}->in_fh)
+		      && binmode($self->{repl}->out_fh) }
 }
 # fileno: "If there is no real file descriptor at the OS level, ... -1 is returned."
 # since we have two underlying handles, which one the user wants is ambiguous, so just return -1,

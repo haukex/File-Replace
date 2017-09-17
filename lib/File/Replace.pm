@@ -18,9 +18,12 @@ BEGIN {
 	# apparently this wasn't available until 0.06 / Perl 5.8.9
 	# since this is just for internal typo prevention,
 	# we can fake it when it's not available
+	# uncoverable branch false
+	# uncoverable condition right
+	# uncoverable condition false
 	if ($] ge '5.010' || defined &Hash::Util::lock_ref_keys)
 		{ Hash::Util->import('lock_ref_keys') }
-	else { *lock_ref_keys = sub {} }
+	else { *lock_ref_keys = sub {} }  # uncoverable statement
 }
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file

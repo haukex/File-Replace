@@ -46,22 +46,24 @@ my $fn = newtempfn;
 	# workaround for :raw not working properly in Perl <5.14
 	binmode $tfh;
 	binmode $tfh, ':utf8';  ## no critic (RequireEncodingWithUTF8Layer)
-	print $tfh "Foo\n\x{20AC}Bar\nX\nY\n";
+	print $tfh "HelloFoo\n\x{20AC}Bar\nX\nY\n";
 	close $tfh;
 }
 
-subtest 'tiehandle methods' => sub { plan tests=>27;
+subtest 'tiehandle methods' => sub { plan tests=>29;
 	my $fh = replace($fn);
 	isa_ok tied(*$fh)->replace, 'File::Replace';
 	ok binmode($fh), 'binmode 0';
 	# reading
-	is read($fh, my $rbuf1, 1), 1, 'read len';
+	is read($fh, my $rbuf0, 5, 2), 5, 'read len 5';
+	is $rbuf0, "\0\0Hello", 'read buf';
+	is read($fh, my $rbuf1, 1), 1, 'read len 1';
 	is $rbuf1, 'F', 'read char';
 	is getc($fh), 'o', 'getc';
 	ok !eof($fh), 'eof 1';
 	ok seek($fh,-1,1), 'seek';
 	is readline($fh), "oo\n", 'readline 1';
-	is tell($fh), 4, 'tell';
+	is tell($fh), 9, 'tell';
 	ok !grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh)->in_fh ) ), 'in isnt utf8'
 		or diag explain [PerlIO::get_layers( tied(*$fh)->in_fh )];
 	ok !grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh)->out_fh ) ), 'out isnt utf8'
@@ -147,7 +149,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 	}
 }
 
-subtest 'warnings and exceptions' => sub { plan tests=>23;
+subtest 'warnings and exceptions' => sub { plan tests=>27;
 	like exception { my $r = replace() },
 		qr/\bnot enough arguments\b/i, 'replace not enough args';
 	like exception { my $r = replace("somefn",BadArg=>"boom") },
@@ -177,12 +179,16 @@ subtest 'warnings and exceptions' => sub { plan tests=>23;
 	}, qr/\bFile::Replace object\b/, 'tie DualHandle wrong class';
 	{
 		my $fh = replace(newtempfn, autocancel=>1);
-		tied(*$fh)->{repl}{ifh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ifh}, 0, 0, 1, 1);
-		tied(*$fh)->{repl}{ofh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ofh},       0, 1);
+		tied(*$fh)->{repl}{ifh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ifh}, 0, 0, 1, 1, 0, 0, 1, 1);
+		tied(*$fh)->{repl}{ofh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ofh},       0, 1,       0, 1);
 		is binmode($fh), 0, 'binmode 00';
 		is binmode($fh), 0, 'binmode 01';
 		is binmode($fh), 0, 'binmode 10';
 		is binmode($fh), 1, 'binmode 11';
+		is binmode($fh,':raw'), 0, 'binmode w/l 00';
+		is binmode($fh,':raw'), 0, 'binmode w/l 01';
+		is binmode($fh,':raw'), 0, 'binmode w/l 10';
+		is binmode($fh,':raw'), 1, 'binmode w/l 11';
 		ok tied( *{tied(*$fh)->{repl}{ifh}} )->endmock, 'all ifh mocks used up';
 		ok tied( *{tied(*$fh)->{repl}{ofh}} )->endmock, 'all ofh mocks used up';
 	}
