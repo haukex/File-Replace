@@ -50,7 +50,7 @@ sub CLOSE {
 }
 
 # The following are simple enough to just copy out of Tie::Handle::Base and adapt
-sub READ     { &CORE::read(shift->{repl}->in_fh, \shift, @_) }
+sub READ     { read($_[0]->{repl}->in_fh, $_[1], $_[2], defined $_[3] ? $_[3] : 0 ) }
 sub READLINE { readline  shift->{repl}->in_fh }
 sub GETC     {     getc  shift->{repl}->in_fh }
 sub EOF      {      eof  shift->{repl}->in_fh }
@@ -65,8 +65,8 @@ sub WRITE { Tie::Handle::Base::_WRITE(shift->{repl}->out_fh, @_) }  ## no critic
 
 sub BINMODE {
 	my $self = shift;
-	return &CORE::binmode($self->{repl}->in_fh,  @_)
-	    && &CORE::binmode($self->{repl}->out_fh, @_);
+	return ( @_ ? binmode($self->{repl}->in_fh, $_[0]) : binmode($self->{repl}->in_fh ) )
+	    && ( @_ ? binmode($self->{repl}->out_fh,$_[0]) : binmode($self->{repl}->out_fh) )
 }
 # fileno: "If there is no real file descriptor at the OS level, ... -1 is returned."
 # since we have two underlying handles, which one the user wants is ambiguous, so just return -1,

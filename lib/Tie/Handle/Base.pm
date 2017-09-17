@@ -31,8 +31,11 @@ sub DESTROY  { shift->{_innerhandle}=undef }
 
 sub innerhandle { shift->{_innerhandle} }
 
-sub BINMODE  { &CORE::binmode (shift->{_innerhandle}, @_) }
-sub READ     { &CORE::read    (shift->{_innerhandle}, \shift, @_) }
+sub BINMODE  { my $fh=shift->{_innerhandle}; @_ ? binmode($fh,$_[0]) : binmode($fh) }
+sub READ     { read($_[0]->{_innerhandle}, $_[1], $_[2], defined $_[3] ? $_[3] : 0 ) }
+# The following would work in Perl >=5.16, when CORE:: was added
+#sub BINMODE  { &CORE::binmode (shift->{_innerhandle}, @_) }
+#sub READ     { &CORE::read    (shift->{_innerhandle}, \shift, @_) }
 
 sub CLOSE    {    close  shift->{_innerhandle} }
 sub EOF      {      eof  shift->{_innerhandle} }
@@ -46,7 +49,7 @@ sub OPEN {
 	my $self = shift;
 	@_ or croak "not enough arguments to open";
 	close $self->{_innerhandle} if defined fileno $self->{_innerhandle};
-	&CORE::open($self->{_innerhandle}, shift, @_ );
+	open $self->{_innerhandle}, shift, @_;
 }
 
 # The following work too, but I chose to implement them in terms of

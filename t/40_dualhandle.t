@@ -115,7 +115,30 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 		}), 'no warn with autofinish';
 };
 
-subtest 'warnings and exceptions' => sub { plan tests=>22;
+{
+	package Tie::Handle::MockBinmode;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
+	sub new {
+		my $class = shift;
+		my $fh = $class->SUPER::new(shift);
+		tied(*$fh)->{mocks} = [@_];
+		return $fh;
+	}
+	sub BINMODE {
+		my $self = shift;
+		die "no more mocks left" unless @{ $self->{mocks} };
+		return shift @{ $self->{mocks} };
+	}
+	sub endmock {
+		my $self = shift;
+		return if @{ $self->{mocks} };
+		return 1;
+	}
+}
+
+subtest 'warnings and exceptions' => sub { plan tests=>23;
 	like exception { my $r = replace() },
 		qr/\bnot enough arguments\b/i, 'replace not enough args';
 	like exception { my $r = replace("somefn",BadArg=>"boom") },
@@ -145,15 +168,14 @@ subtest 'warnings and exceptions' => sub { plan tests=>22;
 	}, qr/\bFile::Replace object\b/, 'tie DualHandle wrong class';
 	{
 		my $fh = replace(newtempfn, autocancel=>1);
-		my @modes = (0, 0, 1,0, 1,1); # remember && short-circuits
-		no warnings 'redefine';  ## no critic (ProhibitNoWarnings)
-		local *CORE::binmode = sub { @modes or die; return shift @modes };
-		use warnings 'all';
+		tied(*$fh)->{repl}{ifh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ifh}, 0, 0, 1, 1);
+		tied(*$fh)->{repl}{ofh} = Tie::Handle::MockBinmode->new(tied(*$fh)->{repl}{ofh},       0, 1);
 		is binmode($fh), 0, 'binmode 00';
 		is binmode($fh), 0, 'binmode 01';
 		is binmode($fh), 0, 'binmode 10';
 		is binmode($fh), 1, 'binmode 11';
-		ok !@modes, 'all modes used up' or diag explain \@modes;
+		ok tied( *{tied(*$fh)->{repl}{ifh}} )->endmock, 'all ifh mocks used up';
+		ok tied( *{tied(*$fh)->{repl}{ofh}} )->endmock, 'all ofh mocks used up';
 	}
 	
 	# author tests make warnings fatal, disable that here
