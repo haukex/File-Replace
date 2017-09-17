@@ -68,8 +68,8 @@ my $cant_chmod_modes = sub {
 	my $perms2 = S_IMODE(stat($testfn)->mode);
 	if ( $perms2!=oct('640') ) { return "can't chmod b/c 2nd perms are ".sprintf('%05o',$perms2) }
 }->();
-subtest 'perms / chmod' => sub { plan tests=>7;
-	$cant_chmod_modes and plan skip_all => $cant_chmod_modes;
+subtest 'perms / chmod' => sub {
+	plan $cant_chmod_modes ? (skip_all=>$cant_chmod_modes) : (tests=>7);
 	{
 		my $fn = spew(newtempfn,"PermTest1");
 		checked_chmod('600',$fn);
