@@ -40,11 +40,20 @@ BEGIN {
 	use_ok 'File::Replace', 'replace';
 }
 
-my $fn = spew(newtempfn,"Foo\n\x{20AC}Bar\nX\nY\n",':utf8');
+my $fn = newtempfn;
+{
+	open my $tfh, '>', $fn or die $!;
+	# workaround for :raw not working properly in Perl <5.14
+	binmode $tfh;
+	binmode $tfh, ':utf8';  ## no critic (RequireEncodingWithUTF8Layer)
+	print $tfh "Foo\n\x{20AC}Bar\nX\nY\n";
+	close $tfh;
+}
 
-subtest 'tiehandle methods' => sub { plan tests=>26;
+subtest 'tiehandle methods' => sub { plan tests=>27;
 	my $fh = replace($fn);
 	isa_ok tied(*$fh)->replace, 'File::Replace';
+	ok binmode($fh), 'binmode 0';
 	# reading
 	is read($fh, my $rbuf1, 1), 1, 'read len';
 	is $rbuf1, 'F', 'read char';

@@ -98,6 +98,7 @@ close $fh;
 
 ok my $fh2 = Tie::Handle::Base->new(), 'new'; # don't pass in a handle here
 isa_ok tied(*$fh2), 'Tie::Handle::Base';
+# NOTE that :raw does not quite work right on Perl <5.14, but it does work here
 my $fn2 = spew(newtempfn,"Foo\n",':raw');
 ok open($fh2,'>>:raw:crlf',$fn2), 'open 2' or die $!;
 ok print($fh2 "Bar\n"), 'print 2';

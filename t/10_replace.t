@@ -134,7 +134,8 @@ subtest 'layers' => sub { plan tests=>2;
 		my $r = File::Replace->new($fn,':crlf');
 		print {$r->out_fh} "Foo\nBar\n";
 		$r->finish;
-		is slurp($fn), "Foo\x0D\x0ABar\x0D\x0A", 'write crlf';
+		# NOTE that :raw does not quite work right on Perl <5.14, but it does work here
+		is slurp($fn,':raw'), "Foo\x0D\x0ABar\x0D\x0A", 'write crlf';
 	}
 };
 
