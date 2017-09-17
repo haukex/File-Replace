@@ -49,7 +49,7 @@ sub OPEN {
 	my $self = shift;
 	@_ or croak "not enough arguments to open";
 	close $self->{_innerhandle} if defined fileno $self->{_innerhandle};
-	open $self->{_innerhandle}, shift, @_;
+	open $self->{_innerhandle}, shift, @_;  ## no critic (RequireCheckedOpen)
 }
 
 # The following work too, but I chose to implement them in terms of

@@ -120,7 +120,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
 	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
-	sub new {
+	sub new {  ## no critic (RequireArgUnpacking)
 		my $class = shift;
 		my $fh = $class->SUPER::new(shift);
 		tied(*$fh)->{mocks} = [@_];
