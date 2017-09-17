@@ -98,10 +98,11 @@ close $fh;
 
 ok my $fh2 = Tie::Handle::Base->new(), 'new'; # don't pass in a handle here
 isa_ok tied(*$fh2), 'Tie::Handle::Base';
-ok open($fh2,'>>:raw:crlf',\(my $z="Foo\n")), 'open 2' or die $!;
+my $fn2 = spew(newtempfn,"Foo\n",':raw');
+ok open($fh2,'>>:raw:crlf',$fn2), 'open 2' or die $!;
 ok print($fh2 "Bar\n"), 'print 2';
 ok close($fh2), 'close 3';
-is $z, "Foo\nBar\x0D\x0A", 'scalar file 4';
+is slurp($fn2,':raw'), "Foo\nBar\x0D\x0A", 'check file';
 untie(*$fh2);
 ok !defined(tied(*$fh2)), 'untie';
 
