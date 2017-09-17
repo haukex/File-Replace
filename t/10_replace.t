@@ -64,6 +64,7 @@ subtest 'debug' => sub { plan tests=>5;
 		ok( !$repl1->cancel, 'debug cancel fail' );
 		my $repl2 = File::Replace->new(newtempfn, debug=>1);
 		$repl2 = undef;
+		1; # don't return anything from this block
 	}, 'captured at least two warnings';
 };
 
