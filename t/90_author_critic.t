@@ -47,7 +47,7 @@ use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
 use File::Spec::Functions qw/catfile catdir abs2rel/;
-use File::Glob ':bsd_glob';
+use File::Glob 'bsd_glob';
 our @PERLFILES;
 BEGIN {
 	@PERLFILES = (
@@ -55,8 +55,8 @@ BEGIN {
 		catfile($FindBin::Bin,qw/ .. lib File Replace DualHandle.pm /),
 		catfile($FindBin::Bin,qw/ .. lib File Replace SingleHandle.pm /),
 		catfile($FindBin::Bin,qw/ .. lib Tie Handle Base.pm /),
-		glob("$FindBin::Bin/*.t"),
-		glob("$FindBin::Bin/*.pm"),
+		bsd_glob("$FindBin::Bin/*.t"),
+		bsd_glob("$FindBin::Bin/*.pm"),
 	);
 }
 
