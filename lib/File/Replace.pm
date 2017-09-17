@@ -30,7 +30,7 @@ BEGIN {
 
 ## no critic (RequireArgUnpacking)
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 our @EXPORT_OK = qw/ replace replace2 /;
 our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
@@ -268,8 +268,7 @@ documentation and search the Internet for "atomic rename" for more details.
 
 =head2 Version
 
-This documentation describes version 0.03 of this module.
-B<This is a development version.>
+This documentation describes version 0.04 of this module.
 
 B<This is an alpha version.> While the module works and has a full test suite,
 I may still decide to change the API as I gain experience with it. I will try
