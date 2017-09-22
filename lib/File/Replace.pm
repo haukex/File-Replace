@@ -261,10 +261,12 @@ exist, and will always point to either the new or the old version of the file,
 so a user attempting to open and read the file will always be able to do so,
 and never see an unfinished version of the file while it is being written.
 
-* Unfortunately, whether or not a rename will actually be atomic in your
-specific circumstances is not always an easy question to answer, as it depends
-on exact details of the operating system and file system. Consult your system's
-documentation and search the Internet for "atomic rename" for more details.
+* B<Warning:> Unfortunately, whether or not a rename will actually be atomic in
+your specific circumstances is not always an easy question to answer, as it
+depends on exact details of the operating system and file system. Consult your
+system's documentation and search the Internet for "atomic rename" for more
+details. This module's job is to perform the C<rename>, and it can make
+B<no guarantees> as to whether it will be atomic or not.
 
 =head2 Version
 
@@ -278,10 +280,11 @@ to make such changes compatible, but can't guarantee that just yet.
 =head1 Constructors and Overview
 
 The functions C<< File::Replace->new() >>, C<replace()>, and C<replace2()> take
-exactly the same arguments, and differ only in their return values. Note that
-C<replace()> and C<replace2()> are normal functions and not methods, don't
-attempt to call them as such. If you don't want to import them you can always
-call them as, for example, C<File::Replace::replace()>.
+exactly the same arguments, and differ only in their return values - C<replace>
+and C<replace2> wrap the functionality of C<File::Replace> inside C<tie>d
+filehandles. Note that C<replace()> and C<replace2()> are normal functions and
+not methods, don't attempt to call them as such. If you don't want to import
+them you can always call them as, for example, C<File::Replace::replace()>.
 
  File::Replace->new( $filename );
  File::Replace->new( $filename, $layers );
@@ -289,9 +292,11 @@ call them as, for example, C<File::Replace::replace()>.
  File::Replace->new( $filename, $layers, option => 'value', ... );
  # replace(...) and replace2(...) take the same arguments
 
-The options are described in L</Options>. The constructors will C<die> in case
-of errors. It is strongly recommended that you C<use warnings;>, as then this
-module will issue warnings which may be of interest to you.
+The constructors will open the input file and the temporary output file (the
+latter via L<File::Temp|File::Temp>), and will C<die> in case of errors. The
+options are described in L</Options>. It is strongly recommended that you
+C<use warnings;>, as then this module will issue warnings which may be of
+interest to you.
 
 =head2 C<< File::Replace->new >>
 
@@ -432,6 +437,10 @@ the C<chmod> operation that is normally performed just before the C<rename>
 will not be attempted. This is mostly intended for systems where you know the
 C<chmod> will fail. See also L</perms>, which allows you to define what
 permissions will be used.
+
+Note that the temporary files created with L<File::Temp|File::Temp> will have
+0600 permissions if left unchanged (except of course on systems that don't
+support these kind of restrictive permissions).
 
 =head2 C<autocancel>
 
