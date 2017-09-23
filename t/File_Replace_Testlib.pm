@@ -100,4 +100,52 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	return wantarray ? @warns : scalar @warns;
 }
 
+## no critic (ProhibitMultiplePackages, RequireCarping)
+
+{
+	package Tie::Handle::Unclosable;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	# just force close to return a false value, since
+	# apparently we can't mock close via "local *CORE::close = sub ...",
+	# (and we didn't have CORE:: before 5.16 anyway)
+	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
+	sub install {
+		my ($class,$repl,$which) = @_;
+		$repl->isa('File::Replace') or die ref $repl;
+		die $which unless $which eq 'ifh' || $which eq 'ofh';
+		$repl->{$which} = $class->new($repl->{$which});
+		return $repl;
+	}
+}
+{
+	package Tie::Handle::Unprintable;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	# we can't mock CORE::print, but we can use a tied handle to cause it to return false
+	sub PRINT { return }
+}
+{
+	package Tie::Handle::MockBinmode;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
+	sub new {  ## no critic (RequireArgUnpacking)
+		my $class = shift;
+		my $fh = $class->SUPER::new(shift);
+		tied(*$fh)->{mocks} = [@_];
+		return $fh;
+	}
+	sub BINMODE {
+		my $self = shift;
+		die "no more mocks left" unless @{ $self->{mocks} };
+		return shift @{ $self->{mocks} };
+	}
+	sub endmock {
+		my $self = shift;
+		return if @{ $self->{mocks} };
+		return 1;
+	}
+}
+
 1;

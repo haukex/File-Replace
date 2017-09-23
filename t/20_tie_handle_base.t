@@ -121,12 +121,5 @@ ok !defined(tied(*$fh2)), 'untie';
 		}), 'tiehandle too many args';
 }
 
-{
-	package Tie::Handle::Unprintable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# we can't mock CORE::print, but we can use a tied handle to cause it to return false
-	sub PRINT { return }
-}
 ok !print( {Tie::Handle::Base->new( Tie::Handle::Unprintable->new )} "Foo" ), 'print fails';
 

@@ -191,20 +191,6 @@ subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;
 	}), 'no warnings about unclosed files';
 };
 
-{
-	package Tie::Handle::Unclosable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# just force close to return a false value, since
-	# apparently we can't mock close via "local *CORE::close = sub ...",
-	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
-}
-sub _mockhandle {
-	my ($repl,$which) = @_;
-	$repl->{$which} = Tie::Handle::Unclosable->new($repl->{$which});
-	return $repl;
-}
-
 subtest 'misc failures' => sub { plan tests=>13;
 	like exception { my $r = File::Replace->new() },
 		qr/\bnot enough arguments\b/i, 'not enough args';
@@ -216,19 +202,19 @@ subtest 'misc failures' => sub { plan tests=>13;
 		qr/\bautocancel\b.+\bautofinish\b/, 'autocancel+autofinish fails';
 	
 	like exception {
-			_mockhandle( File::Replace->new(newtempfn), 'ifh' )->finish;
+			Tie::Handle::Unclosable->install( File::Replace->new(newtempfn), 'ifh' )->finish;
 		}, qr/\bcouldn't close input handle\b/, 'finish close input handle failing';
 	like exception {
-			_mockhandle( File::Replace->new(newtempfn), 'ofh' )->finish;
+			Tie::Handle::Unclosable->install( File::Replace->new(newtempfn), 'ofh' )->finish;
 		}, qr/\bcouldn't close output handle\b/, 'finish close output handle failing';
-	ok !_mockhandle( File::Replace->new(newtempfn), 'ifh' )->_cancel(''),
+	ok !Tie::Handle::Unclosable->install( File::Replace->new(newtempfn), 'ifh' )->_cancel(''),
 		'cancel close input handle failing';
-	ok !_mockhandle( File::Replace->new(newtempfn), 'ofh' )->_cancel(''),
+	ok !Tie::Handle::Unclosable->install( File::Replace->new(newtempfn), 'ofh' )->_cancel(''),
 		'cancel close output handle failing';
 	{
 		my $r = File::Replace->new(newtempfn);
 		close $r->in_fh;
-		_mockhandle( $r, 'ifh' );
+		Tie::Handle::Unclosable->install( $r, 'ifh' );
 		ok !$r->cancel, 'cancel close input handle already closed';
 	}
 	

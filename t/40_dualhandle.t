@@ -126,29 +126,6 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 		}), 'no warn with autofinish';
 };
 
-{
-	package Tie::Handle::MockBinmode;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
-	sub new {  ## no critic (RequireArgUnpacking)
-		my $class = shift;
-		my $fh = $class->SUPER::new(shift);
-		tied(*$fh)->{mocks} = [@_];
-		return $fh;
-	}
-	sub BINMODE {
-		my $self = shift;
-		die "no more mocks left" unless @{ $self->{mocks} };
-		return shift @{ $self->{mocks} };
-	}
-	sub endmock {
-		my $self = shift;
-		return if @{ $self->{mocks} };
-		return 1;
-	}
-}
-
 subtest 'warnings and exceptions' => sub { plan tests=>27;
 	like exception { my $r = replace() },
 		qr/\bnot enough arguments\b/i, 'replace not enough args';
