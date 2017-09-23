@@ -41,7 +41,7 @@ BEGIN {
 }
 
 subtest 'two SingleHandles (in/out)' => sub { plan tests=>8;
-	my $fn = spew(newtempfn,"Foo\nBar\nQuz\n");
+	my $fn = newtempfn("Foo\nBar\nQuz\n");
 	my ($ifh,$ofh) = replace2($fn);
 	isa_ok tied(*$ifh)->replace, 'File::Replace';
 	is tied(*$ifh)->replace, tied(*$ofh)->replace, 'same replace object';
@@ -60,7 +60,7 @@ subtest 'two SingleHandles (in/out)' => sub { plan tests=>8;
 };
 
 subtest 'reverse close order' => sub { plan tests=>3;
-	my $fn = spew(newtempfn,"Hello,\nWorld!");
+	my $fn = newtempfn("Hello,\nWorld!");
 	my ($ifh,$ofh) = replace2($fn);
 	while (<$ifh>) {
 		tr/ol/ui/;
@@ -74,7 +74,7 @@ subtest 'reverse close order' => sub { plan tests=>3;
 };
 
 subtest 'close and discard reference' => sub { plan tests=>3;
-	my $fn = spew(newtempfn,"Foo\nBar\n");
+	my $fn = newtempfn("Foo\nBar\n");
 	my ($ifh,$ofh) = replace2($fn);
 	while (<$ifh>) {
 		chomp;
@@ -89,7 +89,7 @@ subtest 'close and discard reference' => sub { plan tests=>3;
 };
 
 subtest 'one SingleHandle (out)' => sub { plan tests=>2;
-	my $fn = spew(newtempfn,"Blah\nBlah\n");
+	my $fn = newtempfn("Blah\nBlah\n");
 	my $ofh = replace2($fn);
 	print $ofh "Hi\nthere";
 	is slurp($fn), "Blah\nBlah\n", 'after print';
@@ -100,7 +100,7 @@ subtest 'one SingleHandle (out)' => sub { plan tests=>2;
 subtest 'autocancel, autofinish' => sub { plan tests=>8;
 	ok !grep( {/\bunclosed file\b/i}
 		warns {
-			my $fn = spew(newtempfn, "xxxxx\n");
+			my $fn = newtempfn("xxxxx\n");
 			my ($ifh,$ofh) = replace2($fn, autocancel=>1);
 			print $ofh "yyyyyyyy\n";
 			is slurp($fn), "xxxxx\n", 'original unchanged';
@@ -111,7 +111,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>8;
 		}), 'no warn with autocancel';
 	ok !grep( {/\bunclosed file\b/i}
 		warns {
-			my $fn = spew(newtempfn, "xxxxx\n");
+			my $fn = newtempfn("xxxxx\n");
 			my ($ifh,$ofh) = replace2($fn, autofinish=>1);
 			print $ofh "yyyyyyyy\n";
 			is slurp($fn), "xxxxx\n", 'original unchanged';

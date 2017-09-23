@@ -38,7 +38,7 @@ use Test::More tests=>9;
 BEGIN { use_ok 'File::Replace' }
 
 subtest 'basic test' => sub { plan tests=>7;
-	my $fn = spew(newtempfn, "Hello,\n");
+	my $fn = newtempfn("Hello,\n");
 	my $r = File::Replace->new($fn);
 	isa_ok $r, 'File::Replace';
 	my $line = readline($r->in_fh);
@@ -69,7 +69,7 @@ subtest 'debug' => sub { plan tests=>5;
 };
 
 subtest 'options' => sub { plan tests=>3;
-	my $r = File::Replace->new(spew(newtempfn,""), devnull=>0, perms=>oct('640'));
+	my $r = File::Replace->new(newtempfn(""), devnull=>0, perms=>oct('640'));
 	# chmod is a default option that we don't change
 	# devnull is a default option that we do change
 	# perms is not a default option that we explicitly set
@@ -78,7 +78,7 @@ subtest 'options' => sub { plan tests=>3;
 	is_deeply {$r->options}, $exp, 'list opts';
 	$r->finish;
 	# default options only
-	my $r2 = File::Replace->new(spew(newtempfn,""));
+	my $r2 = File::Replace->new(newtempfn(""));
 	# note this *shouldn't* include perms
 	is_deeply scalar($r2->options), { chmod=>!$File::Replace::DISABLE_CHMOD,
 		devnull=>1 }, 'default opts';
@@ -124,7 +124,7 @@ subtest 'create / devnull' => sub { plan tests=>8;
 
 subtest 'layers' => sub { plan tests=>2;
 	{
-		my $fn = spew(newtempfn,"Foo\x{20AC}\n",':utf8');
+		my $fn = newtempfn("Foo\x{20AC}\n",':utf8');
 		my $r = File::Replace->new($fn,':utf8');
 		is ''.readline($r->in_fh), "Foo\x{20AC}\n", 'read utf8';
 		$r->finish;
@@ -149,7 +149,7 @@ subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;
 		}), 'warning';
 	ok !grep( {/\bunclosed file\b/i} warns {
 		{
-			my $fn = spew(newtempfn, "Alpha\n");
+			my $fn = newtempfn("Alpha\n");
 			my $r = File::Replace->new($fn);
 			print {$r->out_fh} "Beta\n";
 			is slurp($fn), "Alpha\n", 'original unchanged';
@@ -159,7 +159,7 @@ subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;
 			is slurp($fn), "Alpha\n", 'still unchanged';
 		}
 		{
-			my $fn = spew(newtempfn, "Gamma\n");
+			my $fn = newtempfn("Gamma\n");
 			my $r = File::Replace->new($fn, autocancel=>1);
 			print {$r->out_fh} "Delta\n";
 			is slurp($fn), "Gamma\n", 'original unchanged';
@@ -167,7 +167,7 @@ subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;
 			is slurp($fn), "Gamma\n", 'unchanged after autocancel';
 		}
 		{
-			my $fn = spew(newtempfn, "Epsilon\n");
+			my $fn = newtempfn("Epsilon\n");
 			my $r = File::Replace->new($fn, autofinish=>1);
 			print {$r->out_fh} "Zeta\n";
 			is slurp($fn), "Epsilon\n", 'original unchanged';
@@ -175,7 +175,7 @@ subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;
 			is slurp($fn), "Zeta\n", 'original replaced after autofinish';
 		}
 		{
-			my $fn = spew(newtempfn, "Blam\n");
+			my $fn = newtempfn("Blam\n");
 			like exception {
 				my $r = File::Replace->new($fn, autofinish=>1);
 				my $infh = $r->in_fh;

@@ -88,7 +88,7 @@ ok close($fh), 'close 2';
 is $y, encode('UTF-8',$str,Encode::FB_CROAK), 'scalar file 3';
 
 # test a few variations of open
-my $fn = spew(newtempfn,"blah");
+my $fn = newtempfn("blah");
 ok open($fh, '<', $fn), "3-arg open";
 ok open($fh, '<:utf8', $fn), "3-arg open w/layer";  ## no critic (RequireEncodingWithUTF8Layer)
 ok open($fh, "<$fn"), "2-arg open";  ## no critic (ProhibitTwoArgOpen)
@@ -99,7 +99,7 @@ close $fh;
 ok my $fh2 = Tie::Handle::Base->new(), 'new'; # don't pass in a handle here
 isa_ok tied(*$fh2), 'Tie::Handle::Base';
 # NOTE that :raw does not quite work right on Perl <5.14, but it does work here
-my $fn2 = spew(newtempfn,"Foo\n",':raw');
+my $fn2 = newtempfn("Foo\n",':raw');
 ok open($fh2,'>>:raw:crlf',$fn2), 'open 2' or die $!;
 ok print($fh2 "Bar\n"), 'print 2';
 ok close($fh2), 'close 3';

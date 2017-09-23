@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>11;
+use Test::More tests=>11; # remember to keep in sync with done_testing
 
 ## no critic (RequireCarping)
 
@@ -49,7 +49,7 @@ $File::Replace::DISABLE_CHMOD and diag "\n",
 	"it appears a simple chmod failed on your system,\n",
 	"no attempts to use chmod will be made during testing";
 
-my $fn1 = spew(newtempfn, "Hello\nWorld\n");
+my $fn1 = newtempfn("Hello\nWorld\n");
 my $r = File::Replace->new($fn1);
 isa_ok $r, 'File::Replace';
 while( defined( my $line = readline($r->in_fh) ) ) {
@@ -59,7 +59,7 @@ while( defined( my $line = readline($r->in_fh) ) ) {
 ok $r->finish, 'finish';
 is slurp($fn1), "Hellu\nWurld\n", 'basic test';
 
-my $fn2 = spew(newtempfn, "Foo\nBar\nQuz");
+my $fn2 = newtempfn("Foo\nBar\nQuz");
 my $fh = replace($fn2);
 while (<$fh>) {
 	tr/aeiou/12345/;

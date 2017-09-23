@@ -70,7 +70,7 @@ subtest 'synposes' => sub {
 	is @$verb_fr, 3, 'File::Replace synopsis verbatim block count'
 		or diag explain $verb_fr;
 	{
-		my $filename = spew(newtempfn, "Foo\nBar\nQuz\n");
+		my $filename = newtempfn("Foo\nBar\nQuz\n");
 		eval("use warnings; use strict; $$verb_fr[0]; 1") or fail($@);
 		is slurp($filename), "X: Foo\nX: Bar\nX: Quz\n", 'synposis 1';
 		eval("use warnings; use strict; $$verb_fr[1]; 1") or fail($@);

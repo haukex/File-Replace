@@ -91,7 +91,7 @@ subtest 'tiehandle methods' => sub { plan tests=>29;
 };
 
 subtest 'mode, reopening, etc.' => sub { plan tests=>5;
-	my $fn2 = spew(newtempfn, "B\x{20AC}ep\n", ':utf8');
+	my $fn2 = newtempfn("B\x{20AC}ep\n", ':utf8');
 	my $fh2 = replace($fn);
 	close $fh2;
 	open $fh2, ':utf8', $fn2 or die $!;  ## no critic (RequireEncodingWithUTF8Layer)
@@ -99,7 +99,7 @@ subtest 'mode, reopening, etc.' => sub { plan tests=>5;
 	print $fh2 "Hi \x{263A}";
 	close $fh2;
 	is slurp($fn2, ':utf8'), "Hi \x{263A}", 'before reopen';
-	ok open( $fh2, spew(newtempfn,"Foo") ), '2-arg open';  ## no critic (ProhibitTwoArgOpen)
+	ok open( $fh2, newtempfn("Foo") ), '2-arg open';  ## no critic (ProhibitTwoArgOpen)
 	is <$fh2>, "Foo", '2-arg open read';
 	close $fh2;
 	is slurp($fn2,':utf8'), "Hi \x{263A}", 'after reopen';
@@ -108,7 +108,7 @@ subtest 'mode, reopening, etc.' => sub { plan tests=>5;
 subtest 'autocancel, autofinish' => sub { plan tests=>6;
 	ok !grep( {/\bunclosed file\b/i}
 		warns {
-			my $fn2 = spew(newtempfn, "aaaa\n");
+			my $fn2 = newtempfn("aaaa\n");
 			my $fh = replace($fn2, autocancel=>1);
 			print $fh "bbbbbb\n";
 			is slurp($fn2), "aaaa\n", 'original unchanged';
@@ -117,7 +117,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 		}), 'no warn with autocancel';
 	ok !grep( {/\bunclosed file\b/i}
 		warns {
-			my $fn2 = spew(newtempfn, "12345\n");
+			my $fn2 = newtempfn("12345\n");
 			my $fh = replace($fn2, autofinish=>1);
 			print $fh "678\n";
 			is slurp($fn2), "12345\n", 'original unchanged';
@@ -156,7 +156,7 @@ subtest 'warnings and exceptions' => sub { plan tests=>27;
 		qr/\bunknown option\b/i, 'replace bad args';
 	
 	{
-		my $fh = replace(spew(newtempfn,""));
+		my $fh = replace(newtempfn(""));
 		like exception { open $fh, '>bad2argopen' },  ## no critic (ProhibitTwoArgOpen, RequireBriefOpen, RequireCheckedOpen)
 			qr/\bopen mode\b/i, 'bad 2 arg reopen';
 		like exception { open $fh, '>', 'badmode' },  ## no critic (RequireBriefOpen, RequireCheckedOpen)
@@ -212,10 +212,10 @@ subtest 'warnings and exceptions' => sub { plan tests=>27;
 		}), 'unclosed file';
 	is grep( {/\bunclosed file\b.+\bnot replaced\b/i}
 		warns {
-			my $fn1 = spew(newtempfn, "First");
+			my $fn1 = newtempfn("First");
 			my $fh = replace($fn1);
 			print $fh "Second";
-			my $fn2 = spew(newtempfn, "Third");
+			my $fn2 = newtempfn("Third");
 			open $fh, '', $fn2 or die $!;
 			print $fh "Fourth";
 			is slurp($fn1), "First", 'not replaced after re-open';
