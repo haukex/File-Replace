@@ -470,6 +470,24 @@ This option cannot be used together with C<autocancel>.
 
 Enables some debug output for C<new>, C<finish>, and C<cancel>.
 
+=head1 Notes and Caveats
+
+=head2 Concurrency and File Locking (flock)
+
+This module is very well suited for situations where a file has one writer and
+one or more readers. Having multiple writers is possible, but care must be
+taken to ensure proper coordination of the writers!
+
+For example, a simple L<flock|perlfunc/flock> of the input file is B<not>
+enough: if there are multiple processes, remember that each process will
+I<replace> the original input file by a new and different file! One possible
+solution would be a separate lock file that does not change and is only used
+for C<flock>ing. There are other possible methods, but that is currently beyond
+the scope of this documentation.
+
+(For the sake of completeness, note that you cannot C<flock> the C<tie>d
+handles, only the underlying filehandles.)
+
 =head1 Author, Copyright, and License
 
 Copyright (c) 2017 Hauke Daempfling (haukex@zero-g.net)
