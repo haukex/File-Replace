@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>48;
+use Test::More tests=>49;
 
 use Encode qw/encode/;
 
@@ -92,9 +92,14 @@ my $fn = newtempfn("blah");
 ok open($fh, '<', $fn), "3-arg open";
 ok open($fh, '<:utf8', $fn), "3-arg open w/layer";  ## no critic (RequireEncodingWithUTF8Layer)
 ok open($fh, "<$fn"), "2-arg open";  ## no critic (ProhibitTwoArgOpen)
-like exception { open($fh) },  ## no critic (RequireCheckedOpen)
-	qr/\bnot enough arguments\b/i, 'open not enough args';
 close $fh;
+# open: "As a shortcut a one-argument call takes the filename from the
+# global scalar variable of the same name as the filehandle".
+our $TESTFILE = $fn;
+*SOMEHANDLE = Tie::Handle::Base->new(*TESTFILE);
+ok open(SOMEHANDLE), '1-arg open';  ## no critic (ProhibitBarewordFileHandles)
+is <SOMEHANDLE>, "blah", '1-arg open read';
+close SOMEHANDLE;
 
 ok my $fh2 = Tie::Handle::Base->new(), 'new'; # don't pass in a handle here
 isa_ok tied(*$fh2), 'Tie::Handle::Base';
