@@ -275,10 +275,6 @@ B<no guarantees> as to whether it will be atomic or not.
 This documentation describes version 0.05 of this module.
 B<This is a development version.>
 
-B<This is an alpha version.> While the module works and has a full test suite,
-I may still decide to change the API as I gain experience with it. I will try
-to make such changes compatible, but can't guarantee that just yet.
-
 =head1 Constructors and Overview
 
 The functions C<< File::Replace->new() >>, C<replace()>, and C<replace2()> take
