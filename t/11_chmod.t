@@ -126,7 +126,10 @@ subtest 'open/chmod/rename failure tests' => sub {
 	my $r1 = File::Replace->new($tfn);
 	print {$r1->out_fh} "Test1";
 	checked_chmod('400',$tmpdir);
-	like exception { $r1->finish }, qr/\bchmod\b/,
+	like exception { $r1->finish },
+		# apparently the directory perms work a little differently on cygwin,
+		# this dies with "couldn't rename ...: Permission denied" there.
+		$^O eq 'cygwin' ? qr/\brenam(?:e|ing)\b/i : qr/\bchmod\b/,
 		'close permission denied (chmod fail)';
 	
 	checked_chmod('500',$tmpdir);
