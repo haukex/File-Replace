@@ -10,6 +10,23 @@ WriteMakefile(
 	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {
 		'meta-spec'  => { version => 2 },
+		provides     => {
+			'File::Replace' => {
+				file    => 'lib/File/Replace.pm',
+				version => '0.05',
+			},
+			'Tie::Handle::Base' => {
+				file    => 'lib/Tie/Handle/Base.pm',
+				version => '0.05',
+			},
+		},
+		no_index     => {
+			directory => [ 't' ],
+			file      => [
+					'lib/File/Replace/DualHandle.pm',
+					'lib/File/Replace/SingleHandle.pm',
+				],
+		},
 		resources    => {
 			homepage    => 'https://bitbucket.org/haukex/file-replace',
 			repository  => {
