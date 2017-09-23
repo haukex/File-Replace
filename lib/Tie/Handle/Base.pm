@@ -48,7 +48,7 @@ sub TELL     {     tell  shift->{_innerhandle} }
 sub OPEN {
 	my $self = shift;
 	@_ or croak "not enough arguments to open";
-	close $self->{_innerhandle} if defined fileno $self->{_innerhandle};
+	$self->CLOSE if defined $self->FILENO;
 	open $self->{_innerhandle}, shift, @_;  ## no critic (RequireCheckedOpen)
 }
 
