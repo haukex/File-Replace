@@ -99,7 +99,7 @@ subtest 'create / devnull' => sub { plan tests=>8;
 	{
 		my $fn = newtempfn;
 		ok exception { my $r = File::Replace->new($fn, devnull=>0) }, 'fails ok';
-		ok $!{ENOENT}, 'ENOENT'; #TODO Later: will this work on all OSes?
+		ok $!{ENOENT}, 'ENOENT';
 		ok !-e $fn, "file doesn't exist";
 	}
 	{
