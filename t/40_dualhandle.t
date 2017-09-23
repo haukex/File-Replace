@@ -126,7 +126,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 		}), 'no warn with autofinish';
 };
 
-subtest 'warnings and exceptions' => sub { plan tests=>27;
+subtest 'warnings and exceptions' => sub { plan tests=>29;
 	like exception { my $r = replace() },
 		qr/\bnot enough arguments\b/i, 'replace not enough args';
 	like exception { my $r = replace("somefn",BadArg=>"boom") },
@@ -169,6 +169,16 @@ subtest 'warnings and exceptions' => sub { plan tests=>27;
 		ok tied( *{tied(*$fh)->{repl}{ifh}} )->endmock, 'all ifh mocks used up';
 		ok tied( *{tied(*$fh)->{repl}{ofh}} )->endmock, 'all ofh mocks used up';
 	}
+	like exception {
+		my $fh = replace(newtempfn);
+		Tie::Handle::Unclosable->install( $fh, 'ifh' );
+		close $fh;
+	}, qr/\bcouldn't close input handle\b/, 'close can die 1';
+	like exception {
+		my $fh = replace(newtempfn);
+		Tie::Handle::Unclosable->install( $fh, 'ofh' );
+		close $fh;
+	}, qr/\bcouldn't close output handle\b/, 'close can die 2';
 	
 	# author tests make warnings fatal, disable that here
 	no warnings FATAL=>'all'; use warnings;  ## no critic (ProhibitNoWarnings)

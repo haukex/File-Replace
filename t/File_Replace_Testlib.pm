@@ -112,6 +112,11 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
 	sub install {
 		my ($class,$repl,$which) = @_;
+		if (ref $repl eq 'GLOB' && tied(*$repl)) {
+			if (ref tied(*$repl) eq 'File::Replace::SingleHandle')
+				{ tied(*$repl)->{_innerhandle} = $class->new( tied(*$repl)->{_innerhandle} ) }
+			$repl = tied(*$repl)->replace;
+		}
 		$repl->isa('File::Replace') or die ref $repl;
 		die $which unless $which eq 'ifh' || $which eq 'ofh';
 		$repl->{$which} = $class->new($repl->{$which});

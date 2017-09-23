@@ -180,8 +180,10 @@ sub cancel { return shift->_cancel('cancel') }
 
 sub DESTROY {
 	my $self = shift;
-	   if ($self->{autocancel}) { $self->cancel }
-	elsif ($self->{autofinish}) { $self->finish }
+	if ($self->{is_open}) {
+		   if ($self->{autocancel}) { $self->cancel }
+		elsif ($self->{autofinish}) { $self->finish }
+	}
 	$self->_cancel('destroy');
 	return;
 }
@@ -338,7 +340,8 @@ such as C<< <$handle> >>, C<readline>, C<sysread>, C<seek>, C<tell>, C<eof>,
 etc. are passed through to the input handle. You can still access these
 operations on the output handle via e.g. C<< eof( tied(*$handle)->out_fh ) >>
 or C<< tied(*$handle)->out_fh->tell() >>. The replace operation (C<finish>) is
-performed when you C<close> the handle.
+performed when you C<close> the handle, which means that C<close> may C<die>
+instead of just returning a false value.
 
 Re-C<open>ing the handle causes a new underlying C<File::Replace> object to be
 created. You should explicitly C<close> the filehandle first so that the
@@ -360,9 +363,10 @@ confusion.
 
 In list context, returns a two-element list of two tied filehandles, the first
 being the input filehandle, and the second the output filehandle, and the
-replace operation (C<finish>) is performed when both handles are closed. In
+replace operation (C<finish>) is performed when both handles are C<close>d. In
 scalar context, it returns only the output filehandle, and the replace
-operation is performed when this handle is closed.
+operation is performed when this handle is C<close>d. This means that C<close>
+may C<die> instead of just returning a false value.
 
 You cannot re-C<open> these tied filehandles.
 

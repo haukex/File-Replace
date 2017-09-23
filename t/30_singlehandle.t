@@ -122,7 +122,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>8;
 		}), 'no warn with autocancel';
 };
 
-subtest 'warnings and errors' => sub { plan tests=>10;
+subtest 'warnings and errors' => sub { plan tests=>14;
 	like exception { my ($r) = replace2() },
 		qr/\bnot enough arguments\b/i, 'replace2 not enough args';
 	like exception { my ($r) = replace2("somefn",BadArg=>"boom") },
@@ -146,6 +146,27 @@ subtest 'warnings and errors' => sub { plan tests=>10;
 		tied(*$i)->replace->finish;
 		open $i, '<', 'somefn';  ## no critic (RequireBriefOpen, RequireCheckedOpen)
 	}, qr/\bcan't reopen\b/i, 'open fails';
+	
+	like exception {
+		my ($i,$o) = replace2(newtempfn, autocancel=>1);
+		Tie::Handle::Unclosable->install( $i, 'ifh' );
+		close $i; close $o;
+	}, qr/\bcouldn't close (?:input )?handle\b/, 'close can die 1';
+	like exception {
+		my ($i,$o) = replace2(newtempfn, autocancel=>1);
+		Tie::Handle::Unclosable->install( $i, 'ifh' );
+		close $o; close $i;
+	}, qr/\bcouldn't close (?:input )?handle\b/, 'close can die 2';
+	like exception {
+		my ($i,$o) = replace2(newtempfn, autocancel=>1);
+		Tie::Handle::Unclosable->install( $o, 'ofh' );
+		close $i; close $o;
+	}, qr/\bcouldn't close (?:output )?handle\b/, 'close can die 3';
+	like exception {
+		my ($i,$o) = replace2(newtempfn, autocancel=>1);
+		Tie::Handle::Unclosable->install( $o, 'ofh' );
+		close $o; close $i;
+	}, qr/\bcouldn't close (?:output )?handle\b/, 'close can die 4';
 	
 	# author tests make warnings fatal, disable that here
 	no warnings FATAL=>'all'; use warnings;  ## no critic (ProhibitNoWarnings)

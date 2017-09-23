@@ -48,7 +48,9 @@ sub CLOSE {
 	my $self = shift;
 	if ( defined($self->{other}) && defined(fileno($self->{other})) ) {
 		# the other file is still open, so just close this one
-		return $self->SUPER::CLOSE();
+		my $rv = $self->SUPER::CLOSE()
+			or croak "couldn't close handle: $!";
+		return $rv;
 	}
 	else {
 		# the other file is closed, trigger the replacement now
