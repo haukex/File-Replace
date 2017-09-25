@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>49;
+use Test::More tests=>50;
 
 use Encode qw/encode/;
 
@@ -111,6 +111,31 @@ ok close($fh2), 'close 3';
 is slurp($fn2,':raw'), "Foo\nBar\x0D\x0A", 'check file';
 untie(*$fh2);
 ok !defined(tied(*$fh2)), 'untie';
+
+subtest 'read and write return values' => sub {
+	my $s1 = "Hello";
+	my $s2 = "\x{2764}\x{1F42A}";
+	ok open(my $ofh, '+<:raw', newtempfn("")), 'open orig';
+	ok open(my $tfh, '+<:raw', newtempfn("")), 'open tied';
+	$tfh = Tie::Handle::Base->new($tfh);
+	is syswrite($tfh,$s1), syswrite($ofh,$s1), 'syswrite';
+	# sysread(), recv(), syswrite() and send() operators
+	# are deprecated on handles that have the :utf8 layer
+	my $s2e = encode('UTF-8',my $temp=$s2,Encode::FB_CROAK);
+	is syswrite($tfh,$s2e), syswrite($ofh,$s2e), 'syswrite encoded';
+	ok seek($ofh,0,0), 'seek orig';
+	ok seek($tfh,0,0), 'seek tied';
+	is sysread($tfh,my $rt1,5), sysread($ofh,my $ro1,5), 'sysread';
+	is $ro1, $s1, 'sysread orig';
+	is $rt1, $s1, 'sysread tied';
+	ok binmode($ofh,':encoding(UTF-8)'), 'binmode orig';
+	ok binmode($tfh,':encoding(UTF-8)'), 'binmode tied';
+	is read($tfh,my $rt2,2), read($ofh,my $ro2,2), 'read';
+	is $ro2, $s2, 'read orig';
+	is $rt2, $s2, 'read tied';
+	ok close($ofh), 'close orig';
+	ok close($tfh), 'close tied';
+};
 
 {
 	# author tests make warnings fatal, disable that here
