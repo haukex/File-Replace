@@ -36,8 +36,7 @@ sub OPEN {
 	croak "layers/filename may not contain an open mode (<, >, etc.)"
 		if $_[0]=~/^\s*\+?[<>]/;
 	my $opts = $self->{repl}->options; # old options to copy over
-	#TODO: reopen shouldn't keep the old layers
-	$opts->{layers} = shift if @_==2;
+	$opts->{layers} = @_==2 ? shift : undef;
 	my $filename = shift;
 	# just let the previous $self->{repl} get destroyed here
 	$self->{repl} = File::Replace->new($filename, %$opts);

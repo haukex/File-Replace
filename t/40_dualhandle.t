@@ -33,7 +33,7 @@ use File_Replace_Testlib;
 
 use Test::More tests=>6;
 
-## no critic (RequireCarping, ProhibitMixedBooleanOperators)
+## no critic (RequireCarping, RequireBriefOpen, ProhibitMixedBooleanOperators)
 
 BEGIN {
 	use_ok 'File::Replace::DualHandle';
@@ -89,7 +89,7 @@ subtest 'tiehandle methods' => sub { plan tests=>29;
 	is slurp($fn), "Hello\n Wo123.00ld!\nuz\n", 'file after editing';
 };
 
-subtest 'mode, reopening, etc.' => sub { plan tests=>5;
+subtest 'mode, reopening, etc.' => sub { plan tests=>12;
 	my $fn2 = newtempfn("B\x{20AC}ep\n", ':utf8');
 	my $fh2 = replace($fn);
 	close $fh2;
@@ -102,6 +102,18 @@ subtest 'mode, reopening, etc.' => sub { plan tests=>5;
 	is <$fh2>, "Foo", '2-arg open read';
 	close $fh2;
 	is slurp($fn2,':utf8'), "Hi \x{263A}", 'after reopen';
+	# reopen shouldn't cause the same layers to be used
+	my $fh3 = replace($fn, ':utf8', autocancel=>1);
+	ok  grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh3)->in_fh  ) ), 'in has utf8';
+	ok  grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh3)->out_fh ) ), 'out has utf8';
+	ok open( $fh3, $fn2 ), 'reopen w/o layers';  ## no critic (ProhibitTwoArgOpen)
+	ok !grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh3)->in_fh  ) ), 'in isnt utf8';
+	ok !grep( {$_ eq 'utf8'} PerlIO::get_layers( tied(*$fh3)->out_fh ) ), 'out isnt utf8';
+	# check against Perl's own behavior
+	open my $fh4, '<:utf8', $fn or die $!;  ## no critic (RequireEncodingWithUTF8Layer)
+	ok  grep( {$_ eq 'utf8'} PerlIO::get_layers( $fh4 ) ), 'has utf8';
+	open $fh4, $fn2 or die $!;  ## no critic (ProhibitTwoArgOpen)
+	ok !grep( {$_ eq 'utf8'} PerlIO::get_layers( $fh4 ) ), 'isnt utf8';
 };
 
 subtest 'autocancel, autofinish' => sub { plan tests=>6;
@@ -133,13 +145,13 @@ subtest 'warnings and exceptions' => sub { plan tests=>31;
 	
 	{
 		my $fh = replace(newtempfn(""));
-		like exception { open $fh, '>bad2argopen' },  ## no critic (ProhibitTwoArgOpen, RequireBriefOpen, RequireCheckedOpen)
+		like exception { open $fh, '>bad2argopen' },  ## no critic (ProhibitTwoArgOpen, RequireCheckedOpen)
 			qr/\bopen mode\b/i, 'bad 2 arg reopen';
-		like exception { open $fh, '>', 'badmode' },  ## no critic (RequireBriefOpen, RequireCheckedOpen)
+		like exception { open $fh, '>', 'badmode' },  ## no critic (RequireCheckedOpen)
 			qr/\bopen mode\b/i, 'bad 3 arg reopen';
-		like exception { open $fh },  ## no critic (RequireBriefOpen, RequireCheckedOpen)
+		like exception { open $fh },  ## no critic (RequireCheckedOpen)
 			qr/\b3-arg open\b/i, 'not enough args to open';
-		like exception { open $fh, '', 'badargs', 'foo' },  ## no critic (RequireBriefOpen, RequireCheckedOpen)
+		like exception { open $fh, '', 'badargs', 'foo' },  ## no critic (RequireCheckedOpen)
 			qr/\b3-arg open\b/i, 'too many args to open';
 		close $fh;
 	}
