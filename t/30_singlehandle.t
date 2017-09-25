@@ -122,7 +122,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>8;
 		}), 'no warn with autocancel';
 };
 
-subtest 'warnings and errors' => sub { plan tests=>14;
+subtest 'warnings and errors' => sub { plan tests=>17;
 	like exception { my ($r) = replace2() },
 		qr/\bnot enough arguments\b/i, 'replace2 not enough args';
 	like exception { my ($r) = replace2("somefn",BadArg=>"boom") },
@@ -198,6 +198,18 @@ subtest 'warnings and errors' => sub { plan tests=>14;
 				1; # so object doesn't get returned from do
 			};
 		}), 3, 'unclosed file';
+	is grep( {/\balready closed\b/}
+		warns {
+			my ($ifh,$ofh) = replace2(newtempfn(""));
+			close $ifh;
+			close $ofh;
+			# note we know what a failed close returns from the tests
+			# for Tie::Handle::Base
+			is_deeply [close $ofh], [!1], 'close fails 1';
+			my $sfh = replace2(newtempfn(""));
+			close $sfh;
+			is_deeply [close $sfh], [!1], 'close fails 2';
+		}), 2, 'already closed warns';
 	
 };
 

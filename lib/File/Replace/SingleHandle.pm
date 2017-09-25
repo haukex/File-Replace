@@ -52,12 +52,8 @@ sub CLOSE {
 			or croak "couldn't close handle: $!";
 		return $rv;
 	}
-	else {
-		# the other file is closed, trigger the replacement now
-		my $repl = $self->{repl};
-		$self->{repl} = undef;
-		return $repl->finish;
-	}
+	else { # the other file is closed, trigger the replacement now
+		return !!$self->{repl}->finish }
 }
 
 sub UNTIE {

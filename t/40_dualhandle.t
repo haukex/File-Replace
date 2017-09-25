@@ -86,7 +86,6 @@ subtest 'tiehandle methods' => sub { plan tests=>29;
 	is fileno($fh),-1,'fileno open';
 	ok close($fh), 'close';
 	ok !defined(fileno($fh)),'fileno closed';
-	close $fh; # test double closing
 	is slurp($fn), "Hello\n Wo123.00ld!\nuz\n", 'file after editing';
 };
 
@@ -126,7 +125,7 @@ subtest 'autocancel, autofinish' => sub { plan tests=>6;
 		}), 'no warn with autofinish';
 };
 
-subtest 'warnings and exceptions' => sub { plan tests=>29;
+subtest 'warnings and exceptions' => sub { plan tests=>31;
 	like exception { my $r = replace() },
 		qr/\bnot enough arguments\b/i, 'replace not enough args';
 	like exception { my $r = replace("somefn",BadArg=>"boom") },
@@ -211,6 +210,14 @@ subtest 'warnings and exceptions' => sub { plan tests=>29;
 			is slurp($fn1), "First", 'still not replaced';
 			is slurp($fn2), "Fourth", 'is now replaced';
 		}), 1, 'reopen causes unclosed file';
+	is grep( {/\balready closed\b/}
+		warns {
+			my $fh = replace(newtempfn(""));
+			close $fh;
+			# note we know what a failed close returns from the tests
+			# for Tie::Handle::Base
+			is_deeply [close $fh], [!1], 'close fails';
+		}), 1, 'already closed warns';
 	
 };
 

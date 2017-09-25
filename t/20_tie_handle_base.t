@@ -112,29 +112,58 @@ is slurp($fn2,':raw'), "Foo\nBar\x0D\x0A", 'check file';
 untie(*$fh2);
 ok !defined(tied(*$fh2)), 'untie';
 
-subtest 'read and write return values' => sub {
+subtest 'return values' => sub {
 	my $s1 = "Hello";
 	my $s2 = "\x{2764}\x{1F42A}";
 	ok open(my $ofh, '+<:raw', newtempfn("")), 'open orig';
 	ok open(my $tfh, '+<:raw', newtempfn("")), 'open tied';
 	$tfh = Tie::Handle::Base->new($tfh);
-	is syswrite($tfh,$s1), syswrite($ofh,$s1), 'syswrite';
-	# sysread(), recv(), syswrite() and send() operators
-	# are deprecated on handles that have the :utf8 layer
+	is syswrite($tfh,$s1), syswrite($ofh,$s1), 'syswrite matches';
+	# "sysread(), recv(), syswrite() and send() operators
+	# are deprecated on handles that have the :utf8 layer"
 	my $s2e = encode('UTF-8',my $temp=$s2,Encode::FB_CROAK);
-	is syswrite($tfh,$s2e), syswrite($ofh,$s2e), 'syswrite encoded';
+	is syswrite($tfh,$s2e), syswrite($ofh,$s2e), 'syswrite enc matches';
+	# print only "Returns true if successful." (and printf is "equivalent" to print),
+	# so in our tests we don't care what that true value is.
+	ok print($ofh "abc"), 'print orig true';
+	ok print($tfh "abc"), 'print tied true';
+	ok printf($ofh "%c%s",100,"ef"), 'printf orig true';
+	ok printf($tfh "%c%s",100,"ef"), 'printf tied true';
+	# check this case, since WRITE will return a length of 0 (false)
+	ok print($ofh ""), 'print empty orig true';
+	ok print($tfh ""), 'print empty tied true';
+	ok printf($ofh ""), 'printf empty orig true';
+	ok printf($tfh ""), 'printf empty tied true';
+	# now read back
 	ok seek($ofh,0,0), 'seek orig';
 	ok seek($tfh,0,0), 'seek tied';
-	is sysread($tfh,my $rt1,5), sysread($ofh,my $ro1,5), 'sysread';
+	is sysread($tfh,my $rt1,length($s1)), sysread($ofh,my $ro1,length($s1)), 'sysread matches';
 	is $ro1, $s1, 'sysread orig';
 	is $rt1, $s1, 'sysread tied';
 	ok binmode($ofh,':encoding(UTF-8)'), 'binmode orig';
 	ok binmode($tfh,':encoding(UTF-8)'), 'binmode tied';
-	is read($tfh,my $rt2,2), read($ofh,my $ro2,2), 'read';
-	is $ro2, $s2, 'read orig';
-	is $rt2, $s2, 'read tied';
+	is read($tfh,my $rt2,length($s2)+6), read($ofh,my $ro2,length($s2)+6), 'read matches';
+	is $ro2, $s2."abcdef", 'read orig';
+	is $rt2, $s2."abcdef", 'read tied';
+	ok eof($ofh), 'eof orig';
+	ok eof($tfh), 'eof tied';
 	ok close($ofh), 'close orig';
 	ok close($tfh), 'close tied';
+	# check what our three emulated functions return on failure
+	# (read and sysread return the same values on errors, and we pass both
+	# of those through to read, so we don't need to check them)
+	is grep({/\bon closed filehandle\b/} warns {
+		no warnings FATAL=>'all'; use warnings;  ## no critic (ProhibitNoWarnings)
+		is_deeply [syswrite($ofh,$s1)], [undef], 'syswrite fail returns undef';
+		is_deeply [syswrite($tfh,$s1)], [syswrite($ofh,$s1)], 'syswrite fail matches';
+		is_deeply [print($ofh "abc")], [undef], 'print fail returns undef';
+		is_deeply [print($tfh "abc")], [print($ofh "abc")], 'print fail matches';
+		is_deeply [printf($ofh "%s","def")], [undef], 'printf fail returns undef';
+		is_deeply [printf($tfh "%s","def")], [printf($ofh "%s","def")], 'printf fail matches';
+	}), 9, 'warns about closed fh';
+	# for completeness, confirm what close returns
+	is_deeply [close $ofh], [!1], 'close orig fail';
+	is_deeply [close $tfh], [close $ofh], 'close fail matches';
 };
 
 {

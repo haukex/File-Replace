@@ -112,13 +112,15 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
 	sub install {
 		my ($class,$repl,$which) = @_;
+		die $which unless $which eq 'ifh' || $which eq 'ofh';
 		if (ref $repl eq 'GLOB' && tied(*$repl)) {
-			if (ref tied(*$repl) eq 'File::Replace::SingleHandle')
-				{ tied(*$repl)->{_innerhandle} = $class->new( tied(*$repl)->{_innerhandle} ) }
+			   if (ref tied(*$repl) eq 'File::Replace::SingleHandle')
+				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
+			elsif (ref tied(*$repl) eq 'File::Replace::DualHandle' && $which eq 'ifh')
+				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
 			$repl = tied(*$repl)->replace;
 		}
 		$repl->isa('File::Replace') or die ref $repl;
-		die $which unless $which eq 'ifh' || $which eq 'ofh';
 		$repl->{$which} = $class->new($repl->{$which});
 		return $repl;
 	}
@@ -128,7 +130,7 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
 	# we can't mock CORE::print, but we can use a tied handle to cause it to return false
-	sub PRINT { return }
+	sub WRITE { return undef }  ## no critic (ProhibitExplicitReturnUndef)
 }
 {
 	package Tie::Handle::MockBinmode;
