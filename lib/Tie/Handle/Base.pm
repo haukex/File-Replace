@@ -127,7 +127,9 @@ Then use your custom tied handle:
 
 C<Tie::Handle::Base> is a base class for tied filehandles. It is similar to
 L<Tie::StdHandle|Tie::StdHandle>, but provides a few more features, and is
-compatible down to Perl 5.8.1.
+compatible down to Perl 5.8.1. It tries to be as transparent as possible (one
+limitation is that C<sysread> and C<syswrite> are only emulated, as described
+in L</READ>).
 
 A few limitations that exist in L<Tie::StdHandle|Tie::StdHandle> (at least
 versions up to and including 4.4) have been lifted: C<BINMODE> accepts the
@@ -215,6 +217,7 @@ methods such as C<seek>, C<tell>, and C<eof>.
 This means that one limitation of this base class is that, while users may call
 C<sysread> and C<syswrite> on the tied handles, these calls will I<not> be
 translated into C<sysread/write> calls on the inner, wrapped handle.
+(See </inner_write> regarding C<syswrite>.)
 
 =head2 All Other Methods
 
