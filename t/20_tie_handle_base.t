@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>50;
+use Test::More tests=>52;
 
 use Encode qw/encode/;
 
@@ -176,4 +176,12 @@ subtest 'return values' => sub {
 }
 
 ok !print( {Tie::Handle::Base->new( Tie::Handle::Unprintable->new )} "Foo" ), 'print fails';
+
+{ # mostly for code coverage
+	open my $hnd, '>', \(my $foo) or die $!;
+	bless $hnd, 'SomeClass';
+	ok Tie::Handle::Base::inner_write($hnd,"Foo"), 'inner_write';
+	close $hnd;
+	is $foo, "Foo", 'inner_write data';
+}
 
