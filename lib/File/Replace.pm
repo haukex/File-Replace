@@ -8,7 +8,6 @@ use IO::Handle; # allow method calls on filehandles on older Perls
 use File::Temp qw/tempfile/;
 use File::Basename qw/fileparse/;
 use File::Spec::Functions qw/devnull/;
-use File::stat;
 use Fcntl qw/S_IMODE/;
 use Exporter 'import';
 use File::Replace::SingleHandle ();
@@ -38,7 +37,7 @@ our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
 our $DISABLE_CHMOD;
 
 my %NEW_KNOWN_OPTS = map {$_=>1} qw/ debug layers devnull create chmod
-	perms autocancel autofinish /;
+	perms autocancel autofinish in_fh /;
 sub new {  ## no critic (ProhibitExcessComplexity)
 	my $class = shift;
 	@_ or croak "$class->new: not enough arguments";
@@ -86,7 +85,11 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	binmode $self->{ofh}, $self->{layers} if defined $self->{layers};
 	# input file
 	my $openmode = defined $self->{layers} ? '<'.$self->{layers} : '<';
-	if ( not open $self->{ifh}, $openmode, $filename ) {
+	if ( defined $self->{in_fh} ) {
+		croak "in_fh appears to be closed" unless defined fileno($self->{in_fh});
+		$self->{ifh} = delete $self->{in_fh};
+	}
+	elsif ( not open $self->{ifh}, $openmode, $filename ) {
 		# No such file or directory:
 		if ( $!{ENOENT} && ($self->{create} eq 'now' || $self->{create} eq 'later') ) {
 			$self->{create} eq 'now' and $openmode = defined $self->{layers} ? '+>'.$self->{layers} : '+>';
@@ -97,14 +100,24 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 			else { $self->{ifh}=undef }
 		} else { $self->{ifh}=undef }
 	}
-	else { $self->{setperms} = S_IMODE(stat($self->{ifh})->mode)
-			unless defined $self->{setperms} }
 	if ( !defined $self->{ifh} ) {
 		my $e=$!;
 		close  $self->{ofh}; $self->{ofh} = undef;
 		unlink $self->{ofn}; $self->{ofn} = undef;
 		$!=$e;  ## no critic (RequireLocalizedPunctuationVars)
 		croak "$class->new: failed to open '$filename': $!" }
+	else {
+		if (!defined $self->{setperms}) {
+			if ($self->{chmod}) {
+				# we're providing our own error, don't need the extra warning
+				no warnings 'unopened';  ## no critic (ProhibitNoWarnings)
+				my (undef,undef,$mode) = stat($self->{ifh})
+					or croak "stat failed: $!";
+				$self->{setperms} = S_IMODE($mode);
+			}
+			else { $self->{setperms}=0 }
+		}
+	}
 	$self->{ifn} = $filename;
 	# finish init
 	$self->{is_open} = 1;
@@ -415,7 +428,8 @@ system, see L<perlfunc/open>.
 
 This option configures the behavior of the module when the input file does not
 exist (C<ENOENT>). There are three modes, which you specify as one of the
-following strings:
+following strings. If you need more precise control of the input file, see the
+L</in_fh> option - note that C<create> is ignored when you use that option.
 
 =over
 
@@ -461,6 +475,18 @@ functionality has been merged into the C<create> option. If you use it, then
 the module will operate in a compatibility mode, but also issue a mandatory
 deprecation warning, informing you what C<create> setting to use instead. The
 C<devnull> option will be entirely removed in a future version.
+
+=head2 C<in_fh>
+
+This option allows you to pass an existing input filehandle to this module,
+instead of having the constructors open the input file for you. Use this option
+if you need more precise control over how the input file is opened, e.g. if you
+want to use C<sysopen> to open it. The handle must be open, which will be
+checked by calling C<fileno> on the handle. The module makes no attempt to
+check that the filename you pass to the module matches the filehandle. The
+module will attempt to C<stat> the handle to get its permissions, except when
+you have specified the L</perms> option or disabled the L</chmod> option. The
+L</create> option is ignored when you use this option.
 
 =head2 C<perms>
 

@@ -133,6 +133,13 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	sub WRITE { return undef }  ## no critic (ProhibitExplicitReturnUndef)
 }
 {
+	package Tie::Handle::FakeFileno;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	sub FILENO { return -1 }
+	sub CLOSE { return 1 }
+}
+{
 	package Tie::Handle::MockBinmode;
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)

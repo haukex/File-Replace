@@ -31,7 +31,8 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>7;
+use Test::More tests=>8;
+use File::Temp qw/tempfile/;
 
 ## no critic (RequireCarping)
 
@@ -100,6 +101,36 @@ subtest 'layers' => sub { plan tests=>2;
 		# NOTE that :raw does not quite work right on Perl <5.14, but it does work here
 		is slurp($fn,':raw'), "Foo\x0D\x0ABar\x0D\x0A", 'write crlf';
 	}
+};
+
+subtest 'in_fh' => sub { plan tests=>7;
+	my ($tfh,$tfn) = tempfile(DIR=>$TEMPDIR,UNLINK=>1);
+	print $tfh "Hello,\nWorld!\n";
+	ok seek($tfh, 0, 0), 'seek';
+	my $repl = File::Replace->new($tfn, in_fh=>$tfh);
+	is readline($repl->in_fh), "Hello,\n", 'readline 1';
+	is readline($repl->in_fh), "World!\n", 'readline 2';
+	ok eof($repl->in_fh), 'eof';
+	print {$repl->out_fh} "Replaced";
+	$repl->finish;
+	is slurp($tfn), "Replaced", 'file contents';
+	# test closed in_fh
+	like exception {
+		my ($tfh2,$tfn2) = tempfile(DIR=>$TEMPDIR,UNLINK=>1);
+		close $tfh2;
+		my $replx = File::Replace->new($tfn2, in_fh=>$tfh2);
+	}, qr/\bin_fh\b.+\bclosed\b/, 'closed in_fh';
+	# test stat failure
+	my $tiedfh = Tie::Handle::FakeFileno->new;
+	like exception {
+		# force chmod to be on in case $DISABLE_CHMOD is set
+		my $repl0 = File::Replace->new($tfn, chmod=>1, in_fh=>$tiedfh);
+	}, qr/\bstat\s+failed\b/, 'stat fails';
+	# these shouldn't fail, since they shouldn't try to stat
+	my $repl1 = File::Replace->new($tfn, in_fh=>$tiedfh, chmod=>0);
+	my $repl2 = File::Replace->new($tfn, in_fh=>$tiedfh, perms=>oct('600'));
+	$repl1->finish;
+	$repl2->finish;
 };
 
 subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;

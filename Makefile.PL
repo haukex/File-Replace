@@ -62,7 +62,6 @@ WriteMakefile(
 		'File::Temp'             => 0,
 		'File::Basename'         => 0,
 		'File::Spec::Functions'  => 0,
-		'File::stat'             => 0,
 		'Fcntl'                  => 0,
 		'Exporter'               => 0,
 	},
@@ -73,6 +72,7 @@ WriteMakefile(
 		'Encode'                 => 0,
 		'Test::More'             => '1.302096',
 		'FindBin'                => 0,
+		'File::stat'             => 0,
 		# note I haven't included modules needed for author tests here
 	},
 );
