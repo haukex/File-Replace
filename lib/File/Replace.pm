@@ -51,7 +51,27 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	croak "$class->new: can't use autocancel and autofinish at once"
 		if $opts{autocancel} && $opts{autofinish};
 	unless (defined wantarray) { warnings::warnif("Useless use of $class->new in void context"); return }
-	my $self = bless { devnull=>1, chmod=>!$DISABLE_CHMOD, %opts, is_open=>0 }, $class;
+	if (exists $opts{devnull}) { # compatibility mode + deprecation warning
+		   if ($opts{create} ) { $opts{create}='now'   }
+		elsif ($opts{devnull}) { $opts{create}='later' }
+		else                   { $opts{create}='off'   }
+		delete $opts{devnull};
+		carp "The 'devnull' option has been deprecated, use create=>'$opts{create}' instead";
+	}
+	elsif (exists $opts{create}) { # normalize 'create' values
+		my $warn;
+		  if (!$opts{create}) # some false value
+			 { $opts{create}='later'; $warn=1 }
+		elsif ($opts{create} eq 'off' || $opts{create} eq 'no')
+			 { $opts{create} = 'off' }
+		elsif ($opts{create} eq 'now' || $opts{create} eq 'later')
+			 { } # nothing needed
+		else { $opts{create} = 'now'; $warn=1 } # other true value
+		$warn and carp "This 'create' value is deprecated, use create=>'$opts{create}' instead";
+	}
+	else { $opts{create} = 'later' } # default
+	# create the object
+	my $self = bless { chmod=>!$DISABLE_CHMOD, %opts, is_open=>0 }, $class;
 	if (defined $_layers) {
 		exists $self->{layers} and croak "$class->new: layers specified twice";
 		$self->{layers} = $_layers }
@@ -67,11 +87,12 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	# input file
 	my $openmode = defined $self->{layers} ? '<'.$self->{layers} : '<';
 	if ( not open $self->{ifh}, $openmode, $filename ) {
-		if ( $!{ENOENT} && ($self->{create} || $self->{devnull}) ) { # No such file or directory
-			$self->{create} and $openmode = defined $self->{layers} ? '+>'.$self->{layers} : '+>';
+		# No such file or directory:
+		if ( $!{ENOENT} && ($self->{create} eq 'now' || $self->{create} eq 'later') ) {
+			$self->{create} eq 'now' and $openmode = defined $self->{layers} ? '+>'.$self->{layers} : '+>';
 			# note we call &devnull() like this because otherwise it would
 			# be inlined and we want to be able to mock it for testing
-			if ( open $self->{ifh}, $openmode, $self->{create} ? $filename : &devnull() )
+			if ( open $self->{ifh}, $openmode, $self->{create} eq 'now' ? $filename : &devnull() )
 				{ $self->{setperms}=oct('666')&~umask unless defined $self->{setperms} }
 			else { $self->{ifh}=undef }
 		} else { $self->{ifh}=undef }
@@ -378,12 +399,9 @@ these handles as this may lead to confusion.
 
 A filename. The temporary output file will be created in the same directory as
 this file, its name will be based on the original filename, but prefixed with a
-dot (C<.>) and suffixed with a random string and an extension of C<.tmp>.
-
-If the input file does not exist (C<ENOENT>), then the behavior will depend on
-the options L</devnull> (enabled by default) and L</create>. If either of these
-options are set, the input file will be created (just at different times), if
-neither are enabled, then attempting to open a nonexistent file will fail.
+dot (C<.>) and suffixed with a random string and an extension of C<.tmp>. If
+the input file does not exist (C<ENOENT>), then the behavior will depend on the
+L</create> option.
 
 =head2 C<layers>
 
@@ -393,28 +411,47 @@ is a list of PerlIO layers such as C<":utf8">, C<":raw:crlf">, or
 C<":encoding(UTF-16)">. Note that the default layers differ based on operating
 system, see L<perlfunc/open>.
 
-=head2 C<devnull>
-
-This option, which is enabled by default, causes the case of nonexistent input
-files to be handled by opening F</dev/null> or its equivalent instead of the
-input file. This means that while the output file is being written, the input
-file name will not exist, and only come into existence when the rename
-operation is performed. If you disable this option, and attempt to open a
-nonexistent file, then the constructor will C<die>.
-
-The option L</create> being set overrides this option.
-
 =head2 C<create>
 
-Enabling this option causes the case of nonexistent input files to be handled
-by opening the input file name with a mode of C<< +> >>, meaning that it is
-created and opened in read-write mode. However, it is strongly recommended that
-you don't take advantage of the read-write mode by writing to the input file,
-as that contradicts the purpose of this module - instead, the input file will
-exist and remain empty until the replace operation.
+This option configures the behavior of the module when the input file does not
+exist (C<ENOENT>). There are three modes, which you specify as one of the
+following strings:
 
-Setting this option overrides L</devnull>. If this option is disabled (the
-default), L</devnull> takes precedence.
+=over
+
+=item C<"later"> (default when C<create> omitted)
+
+Instead of the input file, F</dev/null> or its equivalent is opened. This means
+that while the output file is being written, the input file name will not
+exist, and only come into existence when the rename operation is performed.
+
+=item C<"now">
+
+The input file name is opened with a mode of C<< +> >>, meaning that it is
+created (clobbered) and opened in read-write mode. However, it is strongly
+recommended that you don't take advantage of the read-write mode by writing to
+the input file, as that contradicts the purpose of this module - instead, the
+input file will exist and remain empty until the replace operation.
+
+=item C<"off"> (or C<"no">)
+
+Attempting to open a nonexistent input file will cause the constructor to
+C<die>.
+
+=back
+
+The above values were introduced in version 0.06. Using any other than the
+above values will trigger a mandatory deprecation warning. For backwards
+compatibility, if you specify any other than the above values, then a true
+value will be the equivalent of C<now>, and a false value the equivalent of
+C<later>. The deprecation warning will become a fatal error in a future
+version, to allow new values to be added in the future.
+
+B<< The C<devnull> option has been deprecated >> as of version 0.06. Its
+functionality has been merged into the C<create> option. If you use it, then
+the module will operate in a compatibility mode, but also issue a mandatory
+deprecation warning, informing you what C<create> setting to use instead. The
+C<devnull> option will be entirely removed in a future version.
 
 =head2 C<perms>
 

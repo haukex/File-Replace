@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>9;
+use Test::More tests=>7;
 
 ## no critic (RequireCarping)
 
@@ -69,11 +69,11 @@ subtest 'debug' => sub { plan tests=>5;
 };
 
 subtest 'options' => sub { plan tests=>3;
-	my $r = File::Replace->new(newtempfn(""), devnull=>0, perms=>oct('640'));
+	my $r = File::Replace->new(newtempfn(""), create=>'off', perms=>oct('640'));
 	# chmod is a default option that we don't change
-	# devnull is a default option that we do change
+	# create is a default option that we do change
 	# perms is not a default option that we explicitly set
-	my $exp = { chmod=>!$File::Replace::DISABLE_CHMOD, devnull=>0, perms=>oct('640') };
+	my $exp = { chmod=>!$File::Replace::DISABLE_CHMOD, create=>'off', perms=>oct('640') };
 	is_deeply scalar($r->options), $exp, 'scalar opts';
 	is_deeply {$r->options}, $exp, 'list opts';
 	$r->finish;
@@ -81,45 +81,8 @@ subtest 'options' => sub { plan tests=>3;
 	my $r2 = File::Replace->new(newtempfn(""));
 	# note this *shouldn't* include perms
 	is_deeply scalar($r2->options), { chmod=>!$File::Replace::DISABLE_CHMOD,
-		devnull=>1 }, 'default opts';
+		create=>'later' }, 'default opts';
 	$r2->finish;
-};
-
-subtest 'nonexistent file' => sub { plan tests=>3;
-	my $fn = newtempfn;
-	my $r = File::Replace->new($fn);
-	ok eof($r->in_fh), 'eof';
-	print {$r->out_fh} "Foo\n", "Bar\n";
-	ok !-e $fn, "doesn't exist before finish";
-	$r->finish;
-	is slurp($fn), "Foo\nBar\n", 'replaced file ok';
-};
-
-subtest 'create / devnull' => sub { plan tests=>8;
-	{
-		my $fn = newtempfn;
-		ok exception { my $r = File::Replace->new($fn, devnull=>0) }, 'fails ok';
-		ok $!{ENOENT}, 'ENOENT';
-		ok !-e $fn, "file doesn't exist";
-	}
-	{
-		my $fn = newtempfn;
-		my $r = File::Replace->new($fn, create=>1);
-		ok -e $fn, 'file now exists';
-		print {$r->out_fh} "Something\n";
-		is slurp($fn), "", 'file is empty';
-		$r->finish;
-		is slurp($fn), "Something\n", 'file has content';
-	}
-	{
-		my $fn = newtempfn;
-		# perms option here is just for code coverage, we don't need to check outcome
-		my $r = File::Replace->new($fn, ':utf8', create=>1, perms=>oct('640'));
-		print {$r->out_fh} "Anotherthing\n";
-		is slurp($fn), "", 'file is empty';
-		$r->finish;
-		is slurp($fn), "Anotherthing\n", 'file has content';
-	}
 };
 
 subtest 'layers' => sub { plan tests=>2;
