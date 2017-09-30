@@ -36,7 +36,7 @@ our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
 
 our $DISABLE_CHMOD;
 
-my %NEW_KNOWN_OPTS = map {$_=>1} qw/ debug layers devnull create chmod
+my %NEW_KNOWN_OPTS = map {$_=>1} qw/ debug layers create chmod
 	perms autocancel autofinish in_fh /;
 sub new {  ## no critic (ProhibitExcessComplexity)
 	my $class = shift;
@@ -50,23 +50,12 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	croak "$class->new: can't use autocancel and autofinish at once"
 		if $opts{autocancel} && $opts{autofinish};
 	unless (defined wantarray) { warnings::warnif("Useless use of $class->new in void context"); return }
-	if (exists $opts{devnull}) { # compatibility mode + deprecation warning
-		   if ($opts{create} ) { $opts{create}='now'   }
-		elsif ($opts{devnull}) { $opts{create}='later' }
-		else                   { $opts{create}='off'   }
-		delete $opts{devnull};
-		carp "The 'devnull' option has been deprecated, use create=>'$opts{create}' instead";
-	}
-	elsif (exists $opts{create}) { # normalize 'create' values
-		my $warn;
-		  if (!$opts{create}) # some false value
-			 { $opts{create}='later'; $warn=1 }
-		elsif ($opts{create} eq 'off' || $opts{create} eq 'no')
+	if (defined $opts{create}) { # normalize 'create' values
+		   if ( $opts{create} eq 'off' || $opts{create} eq 'no' )
 			 { $opts{create} = 'off' }
-		elsif ($opts{create} eq 'now' || $opts{create} eq 'later')
+		elsif ( $opts{create} eq 'now' || $opts{create} eq 'later' )
 			 { } # nothing needed
-		else { $opts{create} = 'now'; $warn=1 } # other true value
-		$warn and carp "This 'create' value is deprecated, use create=>'$opts{create}' instead";
+		else { croak "bad value for 'create' option, must be one of off/no/later/now" }
 	}
 	else { $opts{create} = 'later' } # default
 	# create the object
@@ -441,7 +430,7 @@ L</in_fh> option - note that C<create> is ignored when you use that option.
 
 =over
 
-=item C<"later"> (default when C<create> omitted)
+=item C<"later"> (default when C<create> omitted or C<undef>)
 
 Instead of the input file, F</dev/null> or its equivalent is opened. This means
 that while the output file is being written, the input file name will not
@@ -471,18 +460,13 @@ C<die>.
 
 =back
 
-The above values were introduced in version 0.06. Using any other than the
-above values will trigger a mandatory deprecation warning. For backwards
-compatibility, if you specify any other than the above values, then a true
-value will be the equivalent of C<now>, and a false value the equivalent of
-C<later>. The deprecation warning will become a fatal error in a future
-version, to allow new values to be added in the future.
-
-B<< The C<devnull> option has been deprecated >> as of version 0.06. Its
-functionality has been merged into the C<create> option. If you use it, then
-the module will operate in a compatibility mode, but also issue a mandatory
-deprecation warning, informing you what C<create> setting to use instead. The
-C<devnull> option will be entirely removed in a future version.
+Previous versions of this module included support for other values of the
+C<create> option, as well as the C<devnull> option. These were replaced by the
+above C<create> options and deprecated in 0.06, and removed as of 0.08. Using
+unrecognized options will result in a fatal error. Note that in 0.06,
+specifying C<undef> for the C<create> option resulted in a deprecation warning,
+that behavior has now been changed so that C<undef> is equivalent to the
+C<create> option not being set.
 
 =head2 C<in_fh>
 
