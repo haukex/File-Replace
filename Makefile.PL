@@ -65,8 +65,7 @@ WriteMakefile(
 		'Exporter'               => 0,
 	},
 	TEST_REQUIRES  => {
-		# CPAN
-		'Test::Fatal'            => '0.014',
+		# CPAN - none
 		# Perl core modules
 		'Encode'                 => 0,
 		'Test::More'             => '1.302096',

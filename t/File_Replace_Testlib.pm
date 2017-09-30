@@ -29,8 +29,6 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 =cut
 
-use Test::Fatal 'exception';
-
 BEGIN {
 	# "parent" pragma wasn't core until 5.10.1, so just do it ourselves
 	# instead of using "base".
@@ -89,6 +87,13 @@ sub spew {
 	print $fh $content or croak "print $fn: $!";
 	close $fh or croak "close $fn: $!";
 	return $fn;
+}
+
+#use Test::Fatal 'exception';
+# We really only use "exception" for really simple cases, so let's
+# use this cheapo replacement so we can depend only on core modules!
+sub exception (&) {  ## no critic (ProhibitSubroutinePrototypes)
+	return eval { shift->(); 1 } ? undef : ($@ || confess "\$@ was false");
 }
 
 sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
