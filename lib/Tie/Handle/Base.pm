@@ -262,7 +262,7 @@ methods such as C<seek>, C<tell>, and C<eof>.
 This means that one limitation of this base class is that, while users may call
 C<sysread> and C<syswrite> on the tied handles, these calls will I<not> be
 translated into C<sysread/write> calls on the inner, wrapped handle.
-(See </inner_write> regarding C<syswrite>.)
+(See L</inner_write> regarding C<syswrite>.)
 
 =head2 All Other Methods
 
