@@ -21,7 +21,6 @@ WriteMakefile(
 			},
 		},
 		no_index     => {
-			directory => [ 't' ],
 			file      => [
 					'lib/File/Replace/DualHandle.pm',
 					'lib/File/Replace/SingleHandle.pm',
