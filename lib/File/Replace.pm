@@ -427,11 +427,20 @@ exist, and only come into existence when the rename operation is performed.
 
 =item C<"now">
 
-The input file name is opened with a mode of C<< +> >>, meaning that it is
-created (clobbered) and opened in read-write mode. However, it is strongly
-recommended that you don't take advantage of the read-write mode by writing to
-the input file, as that contradicts the purpose of this module - instead, the
-input file will exist and remain empty until the replace operation.
+If the input file does not exist, it is immediately created and opened. There
+is currently a potential race condition: if the file is created by another
+process before this module can create it, then the behavior is undefined - the
+file may be emptied of its contents, or you may be able to read its contents.
+This behavior may be fixed and specified in a future version. The race
+condition is discussed some more in L</Concurrency and File Locking>.
+
+Currently, this option is implemented by opening the file with a mode of
+C<< +> >>, meaning that it is created (clobbered) and opened in read-write
+mode. I<However>, that should be considered an implementation detail that is
+subject to change. Do not attempt to take advantage of the read-write mode by
+writing to the input file - that contradicts the purpose of this module anyway.
+Instead, the input file will exist and remain empty until the replace
+operation.
 
 =item C<"off"> (or C<"no">)
 
@@ -509,11 +518,19 @@ Enables some debug output for C<new>, C<finish>, and C<cancel>.
 
 =head1 Notes and Caveats
 
-=head2 Concurrency and File Locking (flock)
+=head2 Concurrency and File Locking
 
 This module is very well suited for situations where a file has one writer and
-one or more readers. Having multiple writers is possible, but care must be
-taken to ensure proper coordination of the writers!
+one or more readers.
+
+Among other things, this is reflected in the case of a nonexistent file, where
+the L</create> settings C<now> and C<later> (the default) are currently
+implemented as a two-step process, meaning there is the potential of the input
+file being created in the short period of time between the first and second
+C<open> attempts, which this module currently will not notice.
+
+Having multiple writers is possible, but care must be taken to ensure proper
+coordination of the writers!
 
 For example, a simple L<flock|perlfunc/flock> of the input file is B<not>
 enough: if there are multiple processes, remember that each process will
