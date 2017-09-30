@@ -54,15 +54,17 @@ subtest 'basic test' => sub { plan tests=>7;
 };
 
 subtest 'debug' => sub { plan tests=>5;
-	diag "Expect some debug output here:";
-	ok( File::Replace->new(newtempfn, debug=>1)->finish, 'debug' );
-	ok( File::Replace->new(newtempfn,':utf8', debug=>1)->finish, 'debug w/layers' );
+	note "Expect some debug output here:";
+	my $db = Test::More->builder->output;
+	ok( File::Replace->new(newtempfn, debug=>$db)->finish, 'debug' );
+	ok( File::Replace->new(newtempfn,':utf8', debug=>$db)->finish, 'debug w/layers' );
 	ok 2 <= warns { # this "warns" is also just to hide the warning output from the user
 		# author tests make warnings fatal, disable that here
 		no warnings FATAL=>'all'; use warnings;  ## no critic (ProhibitNoWarnings)
-		my $repl1 = File::Replace->new(newtempfn, debug=>1);
+		my $repl1 = File::Replace->new(newtempfn, debug=>$db);
 		ok( $repl1->cancel, 'debug cancel' );
 		ok( !$repl1->cancel, 'debug cancel fail' );
+		local *STDERR = $db;
 		my $repl2 = File::Replace->new(newtempfn, debug=>1);
 		$repl2 = undef;
 		1; # don't return anything from this block

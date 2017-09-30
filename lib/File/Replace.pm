@@ -71,6 +71,7 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	else { $opts{create} = 'later' } # default
 	# create the object
 	my $self = bless { chmod=>!$DISABLE_CHMOD, %opts, is_open=>0 }, $class;
+	$self->{debug} = \*STDERR if $self->{debug} && !ref($self->{debug});
 	if (defined $_layers) {
 		exists $self->{layers} and croak "$class->new: layers specified twice";
 		$self->{layers} = $_layers }
@@ -121,10 +122,17 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	$self->{ifn} = $filename;
 	# finish init
 	$self->{is_open} = 1;
-	$self->{debug} and print STDERR "$class->new: input '".$self->{ifn}
-		."', output '".$self->{ofn}."', layers "
-		.(defined $self->{layers} ? "'".$self->{layers}."'" : 'undef')."\n";
+	$self->_debug("$class->new: input '", $self->{ifn},
+		"', output '", $self->{ofn}, "', layers ",
+		(defined $self->{layers} ? "'".$self->{layers}."'" : 'undef'), "\n");
 	return $self;
+}
+
+sub _debug {
+	my $self = shift;
+	return 1 unless $self->{debug};
+	local ($",$,,$\) = (' ');
+	return print {$self->{debug}} @_;
 }
 
 sub is_open  { return !!shift->{is_open} }
@@ -163,8 +171,8 @@ sub finish {
 		my $e=$!; unlink($ofn); $!=$e;  ## no critic (RequireLocalizedPunctuationVars)
 		croak ref($self)."->finish: $fail: $!";
 	}
-	$self->{debug} and print STDERR ref($self)."->finish:"
-		." renamed '$ofn' to '$ifn', perms ".sprintf('%05o',$self->{setperms})."\n";
+	$self->_debug(ref($self),"->finish: renamed '$ofn' to '$ifn', perms ",
+		sprintf('%05o',$self->{setperms}), "\n");
 	return 1;
 }
 
@@ -197,10 +205,10 @@ sub _cancel {
 			.": unclosed file '".$self->{ifn}."' not replaced!") }
 	elsif ($from eq 'cancel')
 		{ $self->{is_open} or warnings::warnif(ref($self)."->cancel: already closed") }
-	if ($self->{debug} && !($from eq 'destroy' && !$self->{is_open}))
-		{ print STDERR ref($self)."->cancel: not replacing input file ",
+	if (!($from eq 'destroy' && !$self->{is_open}))
+		{ $self->_debug(ref($self), "->cancel: not replacing input file ",
 			(defined $self->{ifn} ? "'$self->{ifn}'" : "(unknown)"),
-			(defined $self->{ofn} ? ", will attempt to unlink '$self->{ofn}'" : ""), "\n" }
+			(defined $self->{ofn} ? ", will attempt to unlink '$self->{ofn}'" : ""), "\n") }
 	my ($ifh,$ofh,$ofn) = @{$self}{qw/ifh ofh ofn/};
 	@{$self}{qw/ifh ofh ofn ifn is_open/} = (undef) x 5;
 	my $success = 1;
@@ -540,7 +548,9 @@ This option cannot be used together with C<autocancel>.
 
 =head2 C<debug>
 
-Enables some debug output for C<new>, C<finish>, and C<cancel>.
+If set to a true value, this option enables some debug output for C<new>,
+C<finish>, and C<cancel>. You may also set this to a filehandle, and debug
+output will be sent there.
 
 =head1 Notes and Caveats
 
