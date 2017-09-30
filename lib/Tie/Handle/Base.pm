@@ -12,6 +12,10 @@ our $VERSION = '0.05';
 
 ## no critic (RequireFinalReturn, RequireArgUnpacking)
 
+our @IO_METHODS = qw/ BINMODE CLOSE EOF FILENO GETC OPEN PRINT PRINTF
+	READ READLINE SEEK TELL WRITE /;
+our @ALL_METHODS = (qw/ TIEHANDLE UNTIE DESTROY /, @IO_METHODS);
+
 sub new {
 	my $class = shift;
 	my $fh = \do{local*HANDLE;*HANDLE};  ## no critic (RequireInitializationForLocalVars)
@@ -140,6 +144,47 @@ B<This is a development version.>
 
 B<See Also:> L<perltie>, L<perlfunc/tie>, L<Tie::Handle>, L<Tie::StdHandle>
 
+=head1 Examples
+
+=head2 Debugging
+
+This is a slightly "fancier" version of the example presented in the
+L</Synopsis>, this prints all calls on the tied handle using
+L<Class::Method::Modifiers|Class::Method::Modifiers>'s C<before> and
+L<Data::Dump|Data::Dump>.
+
+ package Tie::Handle::Debug;
+ use parent 'Tie::Handle::Base';
+ use Class::Method::Modifiers 'before';
+ use Data::Dump 'dd';
+ for my $method (@Tie::Handle::Base::ALL_METHODS) {
+     before $method => sub { dd $method, @_[1..$#_] };
+ }
+
+=head2 Tee
+
+Here is a simple "tee" implementation - anything written to the tied handle via
+C<print>, C<printf>, and C<syswrite> will end up being written to all handles
+given to C<new> (the first handle being the "main" handle that all the other
+I/O functions in this example, including C<close>, are performed on).
+
+ package Tie::Handle::Tee;
+ use parent 'Tie::Handle::Base';
+ sub TIEHANDLE {
+     my ($class,$main,@others) = @_;
+     my $self = $class->SUPER::TIEHANDLE($main);
+     $self->{others} = \@others;
+     return $self;
+ }
+ sub WRITE {
+     my $self = shift;
+     $self->inner_write($_, @_) for @{$self->{others}};
+     return $self->SUPER::WRITE(@_);
+ }
+
+Note that you may wrap one tied handle in another - for example,
+C<< my $fh = Tie::Handle::Debug->new( Tie::Handle::Tee->new(@handles) ) >>.
+
 =head1 Methods
 
 This section documents the methods of this class. Those methods that
@@ -225,7 +270,10 @@ The methods
 B<< C<BINMODE>, C<CLOSE>, C<EOF>, C<FILENO>, C<GETC>, C<READLINE>, C<SEEK>, and C<TELL> >>
 are implemented in this class by calling the Perl functions of the same name.
 
-The full list of methods that tied handles can/should implement is:
+The full list of methods that tied handles can/should implement is as follows.
+The list of names is provided as C<@Tie::Handle::Base::ALL_METHODS>, and the
+list C<@Tie::Handle::Base::IO_METHODS> excludes C<TIEHANDLE>, C<UNTIE>, and
+C<DESTROY>.
 
 =begin comment
 
