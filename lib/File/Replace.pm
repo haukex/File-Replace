@@ -375,6 +375,27 @@ is the same as
  my $in_fh    = $repl_obj->in_fh;
  my $out_fh   = $repl_obj->out_fh;
 
+=head2 C<replace2>
+
+ use File::Replace 'replace2';
+ my ($input_handle, $output_handle) = replace2($filename, ...);
+ my $output_handle = replace2($filename, ...);
+
+In list context, returns a two-element list of two tied filehandles, the first
+being the input filehandle, and the second the output filehandle, and the
+replace operation (C<finish>) is performed when both handles are C<close>d. In
+scalar context, it returns only the output filehandle, and the replace
+operation is performed when this handle is C<close>d. This means that C<close>
+may C<die> instead of just returning a false value.
+
+You cannot re-C<open> these tied filehandles.
+
+You can access the underlying C<File::Replace> object via
+C<< tied(*$handle)->replace >> on both the input and output handle. You can
+also access the original, untied filehandles via C<< tied(*$handle)->in_fh >>
+and C<< tied(*$handle)->out_fh >>, but please don't C<close> or re-C<open>
+these handles as this may lead to confusion.
+
 =head2 C<replace>
 
  use File::Replace 'replace';
@@ -403,27 +424,6 @@ C<< tied(*$handle)->replace >>. You can also access the original, untied
 filehandles via C<< tied(*$handle)->in_fh >> and C<< tied(*$handle)->out_fh >>,
 but please don't C<close> or re-C<open> these handles as this may lead to
 confusion.
-
-=head2 C<replace2>
-
- use File::Replace 'replace2';
- my ($input_handle, $output_handle) = replace2($filename, ...);
- my $output_handle = replace2($filename, ...);
-
-In list context, returns a two-element list of two tied filehandles, the first
-being the input filehandle, and the second the output filehandle, and the
-replace operation (C<finish>) is performed when both handles are C<close>d. In
-scalar context, it returns only the output filehandle, and the replace
-operation is performed when this handle is C<close>d. This means that C<close>
-may C<die> instead of just returning a false value.
-
-You cannot re-C<open> these tied filehandles.
-
-You can access the underlying C<File::Replace> object via
-C<< tied(*$handle)->replace >> on both the input and output handle. You can
-also access the original, untied filehandles via C<< tied(*$handle)->in_fh >>
-and C<< tied(*$handle)->out_fh >>, but please don't C<close> or re-C<open>
-these handles as this may lead to confusion.
 
 =head1 Options
 
