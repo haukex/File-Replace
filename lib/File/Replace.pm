@@ -31,7 +31,7 @@ BEGIN {
 
 our $VERSION = '0.07';
 
-our @EXPORT_OK = qw/ replace replace2 /;
+our @EXPORT_OK = qw/ replace replace2 replace3 /;
 our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
 
 our $DISABLE_CHMOD;
@@ -115,6 +115,13 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 		"', output '", $self->{ofn}, "', layers ",
 		(defined $self->{layers} ? "'".$self->{layers}."'" : 'undef'), "\n");
 	return $self;
+}
+
+sub replace3 {
+	unless (defined wantarray) { warnings::warnif("Useless use of "
+		.__PACKAGE__."::replace3 in void context"); return }
+	my $repl = __PACKAGE__->new(@_);
+	return ($repl->in_fh, $repl->out_fh, $repl);
 }
 
 sub _debug {
@@ -232,19 +239,30 @@ the original
 =for comment
 REMEMBER to keep these examples in sync with 91_author_pod.t
 
-This module provides three interfaces:
+Next to the normal OO constructor, L<C<new>|/new>, this module provides three
+interfaces:
+
+ use File::Replace 'replace3';
+ 
+ my ($infh,$outfh,$repl) = replace3($filename);
+ while (<$infh>) {
+     # write whatever you like to $outfh here
+     print $outfh "X: $_";
+ }
+ $repl->finish;
+
+The following two provide a bit more magic via tied filehandles:
 
  use File::Replace 'replace2';
  
  my ($infh,$outfh) = replace2($filename);
  while (<$infh>) {
-     # write whatever you like to $outfh here
-     print $outfh "X: $_";
+     print $outfh "Y: $_";
  }
  close $infh;   # closing both handles will
  close $outfh;  # trigger the replace
 
-Or the more magical single filehandle, in which C<print>, C<printf>, and
+Or the even more magical single filehandle, in which C<print>, C<printf>, and
 C<syswrite> go to the output file; C<binmode> to both; C<fileno> only reports
 open/closed status; and the other I/O functions go to the input file:
 
@@ -253,20 +271,9 @@ open/closed status; and the other I/O functions go to the input file:
  my $fh = replace($filename);
  while (<$fh>) {
      # can read _and_ write from/to $fh
-     print $fh "Y: $_";
+     print $fh "Z: $_";
  }
  close $fh;
-
-Or the object oriented:
-
- use File::Replace;
- 
- my $repl = File::Replace->new($filename);
- my $infh = $repl->in_fh;
- while (<$infh>) {
-     print {$repl->out_fh} "Z: $_";
- }
- $repl->finish;
 
 =head1 Description
 
@@ -308,18 +315,19 @@ B<This is a development version.>
 
 =head1 Constructors and Overview
 
-The functions C<< File::Replace->new() >>, C<replace()>, and C<replace2()> take
-exactly the same arguments, and differ only in their return values - C<replace>
-and C<replace2> wrap the functionality of C<File::Replace> inside C<tie>d
-filehandles. Note that C<replace()> and C<replace2()> are normal functions and
-not methods, don't attempt to call them as such. If you don't want to import
-them you can always call them as, for example, C<File::Replace::replace()>.
+The constructors C<< File::Replace->new() >>, C<replace3()>, C<replace2()>, and
+C<replace()> take exactly the same arguments, and differ only in their return
+values - C<replace2> and C<replace> wrap the functionality of C<File::Replace>
+inside C<tie>d filehandles. Note that C<replace3()>, C<replace2()>, and
+C<replace()> are normal functions and not methods, don't attempt to call them
+as such. If you don't want to import them you can always call them as, for
+example, C<File::Replace::replace()>.
 
  File::Replace->new( $filename );
  File::Replace->new( $filename, $layers );
  File::Replace->new( $filename, option => 'value', ... );
  File::Replace->new( $filename, $layers, option => 'value', ... );
- # replace(...) and replace2(...) take the same arguments
+ # replace3(...), replace2(...), and replace(...) take the same arguments
 
 The constructors will open the input file and the temporary output file (the
 latter via L<File::Temp|File::Temp>), and will C<die> in case of errors. The
@@ -327,7 +335,7 @@ options are described in L</Options>. It is strongly recommended that you
 C<use warnings;>, as then this module will issue warnings which may be of
 interest to you.
 
-=head2 C<< File::Replace->new >>
+=head2 C<new>
 
  use File::Replace;
  my $replace_object = File::Replace->new($filename, ...);
@@ -352,6 +360,20 @@ The method C<< ->filename >> returns the filename passed to the constructor.
 The method C<< ->options >> in list context returns the options this object has
 set (including defaults) as a list of key/value pairs, in scalar context it
 returns a hashref of these options.
+
+=head2 C<replace3>
+
+This is a convenience function for shorter code:
+
+ use File::Replace 'replace3';
+ my ($in_fh,$out_fh,$repl_obj) = replace3($filename, ...);
+
+is the same as
+
+ use File::Replace;
+ my $repl_obj = File::Replace->new($filename, ...);
+ my $in_fh    = $repl_obj->in_fh;
+ my $out_fh   = $repl_obj->out_fh;
 
 =head2 C<replace>
 
