@@ -355,11 +355,12 @@ Please don't re-C<open> the C<in_fh> and C<out_fh> handles, as this may lead to
 confusion.
 
 The method C<< ->is_open >> will return a false value if the replace operation
-has been C<finish>ed or C<cancel>ed, or a true value if it is still active.
-The method C<< ->filename >> returns the filename passed to the constructor.
-The method C<< ->options >> in list context returns the options this object has
-set (including defaults) as a list of key/value pairs, in scalar context it
-returns a hashref of these options.
+has been C<finish>ed or C<cancel>ed, or a true value if it is still active
+(note that this method does I<not> check the state of the underlying
+filehandles). The method C<< ->filename >> returns the filename passed to the
+constructor. The method C<< ->options >> in list context returns the options
+this object has set (including defaults) as a list of key/value pairs, in
+scalar context it returns a hashref of these options.
 
 =head2 C<replace3>
 
