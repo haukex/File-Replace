@@ -42,8 +42,8 @@ BEGIN {
 	use_ok 'File::Replace', 'replace', 'replace2'
 		or BAIL_OUT("failed to use File::Replace");
 }
-is $Tie::Handle::Base::VERSION, '0.07', 'Tie::Handle::Base version matches tests';
-is $File::Replace::VERSION, '0.07', 'File::Replace version matches tests';
+is $Tie::Handle::Base::VERSION, '0.08', 'Tie::Handle::Base version matches tests';
+is $File::Replace::VERSION, '0.08', 'File::Replace version matches tests';
 
 $File::Replace::DISABLE_CHMOD and diag "\n",
 	"it appears a simple chmod failed on your system,\n",

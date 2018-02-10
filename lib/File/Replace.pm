@@ -29,7 +29,7 @@ BEGIN {
 
 ## no critic (RequireArgUnpacking)
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 our @EXPORT_OK = qw/ replace replace2 replace3 /;
 our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
@@ -340,8 +340,7 @@ B<no guarantees> as to whether it will be atomic or not.
 
 =head2 Version
 
-This documentation describes version 0.07 of this module.
-B<This is a development version.>
+This documentation describes version 0.08 of this module.
 
 =head1 Constructors and Overview
 
@@ -608,7 +607,7 @@ characters copied and dies on errors.
  $repl->copy(2048, less=>'ok');    # copy 2048, but don't warn if less
  $repl->finish;
 
-This method was added in v0.08.
+This method was added in version 0.08.
 
 =head1 Notes and Caveats
 
