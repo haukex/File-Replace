@@ -117,6 +117,47 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	return $self;
 }
 
+sub replace3 {
+	unless (defined wantarray) { warnings::warnif("Useless use of "
+		.__PACKAGE__."::replace3 in void context"); return }
+	my $repl = __PACKAGE__->new(@_);
+	return ($repl->in_fh, $repl->out_fh, $repl);
+}
+
+sub replace2 {
+	unless (defined wantarray) { warnings::warnif("Useless use of "
+		.__PACKAGE__."::replace2 in void context"); return }
+	my $repl = __PACKAGE__->new(@_);
+	if (wantarray) {
+		return (
+			File::Replace::SingleHandle->new($repl, 'in'),
+			File::Replace::SingleHandle->new($repl, 'out') );
+	}
+	else {
+		return File::Replace::SingleHandle->new($repl, 'onlyout');
+	}
+}
+
+sub replace {
+	unless (defined wantarray) { warnings::warnif("Useless use of "
+		.__PACKAGE__."::replace in void context"); return }
+	my $repl = __PACKAGE__->new(@_);
+	return File::Replace::DualHandle->new($repl);
+}
+
+sub is_open  { return !!shift->{is_open} }
+sub filename { return   shift->{ifn}     }
+sub in_fh    { return   shift->{ifh}     }
+sub out_fh   { return   shift->{ofh}     }
+
+sub options {
+	my $self = shift;
+	my %opts;
+	for my $o (keys %NEW_KNOWN_OPTS)
+		{ exists $self->{$o} and $opts{$o} = $self->{$o} }
+	return wantarray ? %opts : \%opts;
+}
+
 our $COPY_DEFAULT_BUFSIZE = 4096;
 my %COPY_KNOWN_OPTS = map {$_=>1} qw/ count bufsize less /;
 sub copy {  ## no critic (ProhibitExcessComplexity)
@@ -147,33 +188,6 @@ sub copy {  ## no critic (ProhibitExcessComplexity)
 	return $opts{count}-$remain;
 }
 
-sub replace3 {
-	unless (defined wantarray) { warnings::warnif("Useless use of "
-		.__PACKAGE__."::replace3 in void context"); return }
-	my $repl = __PACKAGE__->new(@_);
-	return ($repl->in_fh, $repl->out_fh, $repl);
-}
-
-sub _debug {
-	my $self = shift;
-	return 1 unless $self->{debug};
-	local ($",$,,$\) = (' ');
-	return print {$self->{debug}} @_;
-}
-
-sub is_open  { return !!shift->{is_open} }
-sub filename { return   shift->{ifn}     }
-sub in_fh    { return   shift->{ifh}     }
-sub out_fh   { return   shift->{ofh}     }
-
-sub options {
-	my $self = shift;
-	my %opts;
-	for my $o (keys %NEW_KNOWN_OPTS)
-		{ exists $self->{$o} and $opts{$o} = $self->{$o} }
-	return wantarray ? %opts : \%opts;
-}
-
 sub finish {
 	my $self = shift;
 	@_ and warnings::warnif(ref($self)."->finish: too many arguments");
@@ -200,27 +214,6 @@ sub finish {
 	$self->_debug(ref($self),"->finish: renamed '$ofn' to '$ifn', perms ",
 		sprintf('%05o',$self->{setperms}), "\n");
 	return 1;
-}
-
-sub replace {
-	unless (defined wantarray) { warnings::warnif("Useless use of "
-		.__PACKAGE__."::replace in void context"); return }
-	my $repl = __PACKAGE__->new(@_);
-	return File::Replace::DualHandle->new($repl);
-}
-
-sub replace2 {
-	unless (defined wantarray) { warnings::warnif("Useless use of "
-		.__PACKAGE__."::replace2 in void context"); return }
-	my $repl = __PACKAGE__->new(@_);
-	if (wantarray) {
-		return (
-			File::Replace::SingleHandle->new($repl, 'in'),
-			File::Replace::SingleHandle->new($repl, 'out') );
-	}
-	else {
-		return File::Replace::SingleHandle->new($repl, 'onlyout');
-	}
 }
 
 sub _cancel {
@@ -254,6 +247,13 @@ sub DESTROY {
 	}
 	$self->_cancel('destroy');
 	return;
+}
+
+sub _debug {
+	my $self = shift;
+	return 1 unless $self->{debug};
+	local ($",$,,$\) = (' ');
+	return print {$self->{debug}} @_;
 }
 
 1;
