@@ -13,11 +13,11 @@ WriteMakefile(
 		provides     => {
 			'File::Replace' => {
 				file    => 'lib/File/Replace.pm',
-				version => '0.08',
+				version => '0.09',
 			},
 			'Tie::Handle::Base' => {
 				file    => 'lib/Tie/Handle/Base.pm',
-				version => '0.08',
+				version => '0.09',
 			},
 		},
 		no_index     => {
