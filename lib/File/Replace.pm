@@ -117,6 +117,36 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	return $self;
 }
 
+our $COPY_DEFAULT_BUFSIZE = 4096;
+my %COPY_KNOWN_OPTS = map {$_=>1} qw/ count bufsize less /;
+sub copy {  ## no critic (ProhibitExcessComplexity)
+	my $self = shift;
+	croak ref($self)."->copy: already closed" unless $self->{is_open};
+	my $_count = @_%2 ? shift : undef;
+	my %opts = @_;
+	if (defined $_count) {
+		exists $opts{count} and croak ref($self)."->copy: count specified twice";
+		$opts{count} = $_count }
+	for (keys %opts) { croak ref($self)."->copy: unknown option '$_'"
+		unless $COPY_KNOWN_OPTS{$_} }
+	$opts{bufsize} = $COPY_DEFAULT_BUFSIZE unless defined $opts{bufsize};
+	croak ref($self)."->copy: bad count" unless $opts{count} && $opts{count}=~/\A\d+\z/;
+	croak ref($self)."->copy: bad bufsize" unless $opts{bufsize} && $opts{bufsize}=~/\A\d+\z/;
+	croak ref($self)."->copy: bad less option" if defined $opts{less}
+		&& $opts{less}!~/\A(?:ok|ignore)\z/;
+	my $remain = $opts{count};
+	while ( $remain>0 && !eof($self->{ifh}) ) {
+		my $in = read $self->{ifh}, my $buf,
+			$remain > $opts{bufsize} ? $opts{bufsize} : $remain;
+		defined $in or croak ref($self)."->copy: read failed: $!";
+		print {$self->{ofh}} $buf or croak ref($self)."->copy: write failed: $!";
+		$remain -= $in;
+	}
+	warnings::warnif(ref($self)."->copy: read $remain less characters than requested")
+		if $remain && !$opts{less};
+	return $opts{count}-$remain;
+}
+
 sub replace3 {
 	unless (defined wantarray) { warnings::warnif("Useless use of "
 		.__PACKAGE__."::replace3 in void context"); return }
@@ -331,9 +361,9 @@ example, C<File::Replace::replace()>.
 
 The constructors will open the input file and the temporary output file (the
 latter via L<File::Temp|File::Temp>), and will C<die> in case of errors. The
-options are described in L</Options>. It is strongly recommended that you
-C<use warnings;>, as then this module will issue warnings which may be of
-interest to you.
+options are described in L</Constructor Options>. It is strongly recommended
+that you C<use warnings;>, as then this module will issue warnings which may be
+of interest to you.
 
 =head2 C<new>
 
@@ -426,7 +456,7 @@ filehandles via C<< tied(*$handle)->in_fh >> and C<< tied(*$handle)->out_fh >>,
 but please don't C<close> or re-C<open> these handles as this may lead to
 confusion.
 
-=head1 Options
+=head1 Constructor Options
 
 =head2 Filename
 
@@ -558,6 +588,27 @@ This option cannot be used together with C<autocancel>.
 If set to a true value, this option enables some debug output for C<new>,
 C<finish>, and C<cancel>. You may also set this to a filehandle, and debug
 output will be sent there.
+
+=head1 Additional Methods
+
+=head2 C<copy>
+
+This method copies a certain number of "characters" from the input handle to
+the output handle, that is, the temporary file. Depending on the status of the
+filehandle, either (8-bit) bytes or characters are read, see L<perlfunc/read>.
+The option C<bufsize> lets you adjust the read buffer size, and the option
+C<< less=>'ignore' >> or C<< less=>'ok' >> suppresses the warning that less
+characters than you requested could be read. The method returns the number of
+characters copied and dies on errors.
+
+ use File::Replace;
+ my $repl = File::Replace->new($filename, ...);
+ $repl->copy(8);                   # copy eight characters
+ $repl->copy(1024, bufsize=>256);  # copy 1024 chars, 256 at a time
+ $repl->copy(2048, less=>'ok');    # copy 2048, but don't warn if less
+ $repl->finish;
+
+This method was added in v0.08.
 
 =head1 Notes and Caveats
 

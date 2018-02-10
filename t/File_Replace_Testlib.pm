@@ -138,6 +138,12 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	sub WRITE { return undef }  ## no critic (ProhibitExplicitReturnUndef)
 }
 {
+	package Tie::Handle::Unreadable;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	sub READ { return undef }  ## no critic (ProhibitExplicitReturnUndef)
+}
+{
 	package Tie::Handle::FakeFileno;
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
