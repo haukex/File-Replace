@@ -10,6 +10,9 @@ Please see the module's documentation (POD) for details (try the command
 `perldoc lib/File/Replace.pm`) and the file `Changes` for version
 information.
 
+[![Travis CI Build Status](https://travis-ci.org/haukex/File-Replace.svg)](https://travis-ci.org/haukex/File-Replace)
+[![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
+
 Installation
 ------------
 

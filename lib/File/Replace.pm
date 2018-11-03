@@ -74,6 +74,7 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 		".${basename}_XXXXXXXXXX", DIR=>$path, SUFFIX=>'.tmp', UNLINK=>1 );
 	binmode $self->{ofh}, $self->{layers} if defined $self->{layers};
 	# input file
+	#TODO: A "noopen" option where the input file just isn't opened?
 	my $openmode = defined $self->{layers} ? '<'.$self->{layers} : '<';
 	if ( defined $self->{in_fh} ) {
 		croak "in_fh appears to be closed" unless defined fileno($self->{in_fh});
