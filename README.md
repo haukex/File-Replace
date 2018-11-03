@@ -1,7 +1,8 @@
 File-Replace
 ============
 
-This is the distribution of the Perl module `File::Replace`.
+This is the distribution of the Perl module
+[`File::Replace`](https://metacpan.org/pod/File::Replace).
 
 It is a Perl extension for replacing files by renaming a temp file
 over the original.
