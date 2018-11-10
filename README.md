@@ -13,7 +13,7 @@ information.
 
 [![Travis CI Build Status](https://travis-ci.org/haukex/File-Replace.svg)](https://travis-ci.org/haukex/File-Replace)
 [![Coverage Status](https://coveralls.io/repos/github/haukex/File-Replace/badge.svg)](https://coveralls.io/github/haukex/File-Replace)
-[![Kwalitee Score](https://badges.zero-g.net/kwalitee/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
+[![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
 
 Installation
