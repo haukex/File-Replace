@@ -12,6 +12,7 @@ Please see the module's documentation (POD) for details (try the command
 information.
 
 [![Travis CI Build Status](https://travis-ci.org/haukex/File-Replace.svg)](https://travis-ci.org/haukex/File-Replace)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/haukex/File-Replace?svg=true)](https://ci.appveyor.com/project/haukex/file-replace)
 [![Coverage Status](https://coveralls.io/repos/github/haukex/File-Replace/badge.svg)](https://coveralls.io/github/haukex/File-Replace)
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
