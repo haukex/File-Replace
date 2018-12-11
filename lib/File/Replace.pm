@@ -498,6 +498,17 @@ is the same as
  use File::Replace::Inplace;
  my $inplace = File::Replace::Inplace->new(...);
 
+As a special feature, if the import list contains a string beginning with
+C<-i>, then a global L<File::Replace::Inplace|File::Replace::Inplace>
+object will be set up, so C<ARGV> will be tied from the beginning of the
+script. Anything following the C<-i> will be used for the L</backup> option.
+The purpose of this feature is to provide a replacement for Perl's C<-i>
+command-line switch in oneliners. For example, you can say:
+
+ perl -MFile::Replace=-i.bak -pe 's/foo/bar/g' file1.txt file2.txt
+
+and those files will be edited in-place using this module.
+
 =head1 Constructor Options
 
 =head2 Filename
