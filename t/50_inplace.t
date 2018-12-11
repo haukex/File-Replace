@@ -107,6 +107,21 @@ subtest 'cmdline' => sub {
 };
 
 subtest 'restart' => sub {
+	my $tfn = newtempfn("111\n222\n333\n");
+	local @ARGV = ($tfn);
+	{
+		my $inpl = File::Replace::Inplace->new();
+		while (<>) {
+			print "X:$_";
+		}
+		@ARGV = ($tfn);
+		while (<>) {
+			print "Y:$_";
+		}
+	}
+	is slurp($tfn), "Y:X:111\nY:X:222\nY:X:333\n", 'output ok';
+};
+subtest 'restart with emptied @ARGV' => sub {
 	my @tmpfiles = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	my $stdin = newtempfn("Hello\nWorld");
 	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
@@ -127,7 +142,7 @@ subtest 'restart' => sub {
 	is slurp($tmpfiles[1]), "$tmpfiles[1]:3: QUZ\n$tmpfiles[1]:4: BAZ\n", 'file 2 correct';
 	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
 };
-subtest 'empty @ARGV' => sub {
+subtest 'initially empty @ARGV' => sub {
 	my $stdin = newtempfn("Blah\nBlahhh");
 	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
 	open STDIN, '<', $stdin or die "Can't open STDIN: $!";
@@ -146,5 +161,6 @@ subtest 'empty @ARGV' => sub {
 
 #TODO: Tests for:
 # - @ARGV containing "-" (shouldn't work)
+# - resetting line numbering using eof (see "perldoc -f eof")
 
 done_testing;

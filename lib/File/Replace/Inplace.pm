@@ -179,6 +179,11 @@ Files are always opened with the three-argument C<open>, meaning that things
 like piped C<open>s won't work. In that way, this module works more like
 Perl's newer double-diamond C<<< <<>> >>> operator.
 
+=item *
+
+See the documentation of the C<backup> option at L<File::Replace/backup>
+for differences there.
+
 =back
 
 =head1 Author, Copyright, and License
