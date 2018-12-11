@@ -8,6 +8,7 @@ use IO::Handle; # allow method calls on filehandles on older Perls
 use File::Temp qw/tempfile/;
 use File::Basename qw/fileparse/;
 use File::Spec::Functions qw/devnull/;
+use File::Copy ();
 use Fcntl qw/S_IMODE/;
 use Exporter 'import';
 use File::Replace::SingleHandle ();
@@ -37,7 +38,7 @@ our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
 our $DISABLE_CHMOD;
 
 my %NEW_KNOWN_OPTS = map {$_=>1} qw/ debug layers create chmod
-	perms autocancel autofinish in_fh /;
+	perms autocancel autofinish in_fh backup /;
 sub new {  ## no critic (ProhibitExcessComplexity)
 	my $class = shift;
 	@_ or croak "$class->new: not enough arguments";
@@ -110,11 +111,22 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 		}
 	}
 	$self->{ifn} = $filename;
+	# backup
+	my $debug_backup='';
+	if (defined($self->{backup}) && length($self->{backup})) {
+		my $bakfile = $filename . $self->{backup};
+		croak "backup failed: file '$bakfile' exists" if -e $bakfile;
+		#TODO Later: Maybe a backup_link option that uses hard links instead of copy?
+		File::Copy::syscopy($filename, $bakfile)
+			or croak "backup failed: couldn't copy '$filename' to '$bakfile': $!";
+		$debug_backup = ', backup to \''.$bakfile."'";
+	}
 	# finish init
 	$self->{is_open} = 1;
 	$self->_debug("$class->new: input '", $self->{ifn},
 		"', output '", $self->{ofn}, "', layers ",
-		(defined $self->{layers} ? "'".$self->{layers}."'" : 'undef'), "\n");
+		(defined $self->{layers} ? "'".$self->{layers}."'" : 'undef'),
+		$debug_backup, "\n");
 	return $self;
 }
 
@@ -521,6 +533,22 @@ unrecognized options will result in a fatal error. Note that in 0.06,
 specifying C<undef> for the C<create> option resulted in a deprecation warning,
 that behavior has now been changed so that C<undef> is equivalent to the
 C<create> option not being set.
+
+=head2 C<backup>
+
+If you set this option to a non-empty string, then immediately after successfully
+opening the input file, it is copied to a file with the same name and the
+extension specified by this option. For example,
+C<< File::Replace->new("test.txt", backup=>".bak") >> results in a copy of
+F<test.txt> being made to F<test.txt.bak>.
+If that file already exists or something goes wrong with the copy operation,
+then the constructor will C<die>.
+
+B<Warning:> If there is another process writing to the input file or creating files
+in the same directory as the input file, there is a potential for race conditions
+when using this option!
+
+This option was introduced in version 0.10.
 
 =head2 C<in_fh>
 

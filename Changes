@@ -1,6 +1,7 @@
 Revision history for Perl extension File::Replace.
 
 0.10	not yet released
+	- Added "backup" option
 	- ...
 
 0.08	Sat, Feb 10 2018	commit 9a76235bdcbde3cd90633c2808857b2bcffa627d
