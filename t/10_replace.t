@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>10;
+use Test::More tests=>11;
 use File::Temp qw/tempfile/;
 use File::Basename qw/fileparse/;
 
@@ -157,7 +157,7 @@ subtest 'backup' => sub { plan tests=>7;
 		my ($filename, $dirs, $suffix) = fileparse($fn);
 		$suffix = '' unless defined $suffix; # for older versions of File::Basename (e.g. Perl 5.8.1 / module ver 2.72)
 		$dirs . $filename . $suffix . '.bak' };
-	ok !-e $bfn, 'back file doesn\'t exist yet';
+	ok !-e $bfn, 'backup file doesn\'t exist yet';
 	my ($ifh,$ofh,$r) = replace3($fn, backup=>'.bak');
 	is slurp($bfn), "Foo\nBar\nQuz", 'backup file before start';
 	while (<$ifh>) { print $ofh uc }
@@ -175,6 +175,21 @@ subtest 'backup' => sub { plan tests=>7;
 				return 0 };
 			my $r3 = File::Replace->new($fn, backup=>'.bak2'); 1 },
 		qr/\bbackup failed: couldn't copy\b/i, 'back up copy fail';
+};
+subtest 'backup with *' => sub { plan tests=>5;
+	my $fn = newtempfn("Abc\nDef\nGhi\n");
+	my $bfn = do {
+		my ($filename, $dirs, $suffix) = fileparse($fn);
+		$suffix = '' unless defined $suffix; # for older versions of File::Basename (e.g. Perl 5.8.1 / module ver 2.72)
+		$dirs . 'orig_' . $filename . $suffix };
+	ok !-e $bfn, 'backup file doesn\'t exist yet';
+	my ($ifh,$ofh,$r) = replace3($fn, backup=>'orig_*');
+	is slurp($bfn), "Abc\nDef\nGhi\n", 'backup file before start';
+	while (<$ifh>) { print $ofh uc }
+	is slurp($fn), "Abc\nDef\nGhi\n", 'before finish';
+	$r->finish;
+	is slurp($fn), "ABC\nDEF\nGHI\n", 'after finish';
+	is slurp($bfn), "Abc\nDef\nGhi\n", 'backup file after finish';
 };
 
 subtest 'unclosed file, cancel, autocancel, autofinish' => sub { plan tests=>13;

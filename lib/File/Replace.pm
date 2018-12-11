@@ -115,6 +115,10 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 	my $debug_backup='';
 	if (defined($self->{backup}) && length($self->{backup})) {
 		my $bakfile = $filename . $self->{backup};
+		if ( $self->{backup}=~/\*/ ) {
+			($bakfile = $self->{backup}) =~ s/\*/$basename/;
+			$bakfile = $path.$bakfile;
+		}
 		croak "backup failed: file '$bakfile' exists" if -e $bakfile;
 		#TODO Later: Maybe a backup_link option that uses hard links instead of copy?
 		File::Copy::syscopy($filename, $bakfile)
@@ -538,11 +542,17 @@ C<create> option not being set.
 
 If you set this option to a non-empty string, then immediately after successfully
 opening the input file, it is copied to a file with the same name and the
-extension specified by this option. For example,
-C<< File::Replace->new("test.txt", backup=>".bak") >> results in a copy of
-F<test.txt> being made to F<test.txt.bak>.
-If that file already exists or something goes wrong with the copy operation,
-then the constructor will C<die>.
+extension specified by this option (unless you use C<*> characters in the string,
+see below). For example, C<< File::Replace->new("test.txt", backup=>".bak") >>
+results in a copy of F<test.txt> being made to F<test.txt.bak>. If that file
+already exists or something goes wrong with the copy operation, then the
+constructor will C<die>.
+
+As with Perl's C<-i> option, if the string contains C<*> characters, then
+instead of the string being appended to the filename, each C<*> character is
+replaced with the original filename. So for example, if you specify
+C<< backup=>'orig_*' >>, then the backup of F<test.txt> will be
+F<orig_test.txt> (in the same path).
 
 B<Warning:> If there is another process writing to the input file or creating files
 in the same directory as the input file, there is a potential for race conditions
