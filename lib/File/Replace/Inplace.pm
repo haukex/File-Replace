@@ -9,12 +9,139 @@ use warnings::register;
 
 our $VERSION = '0.09';
 
+sub new {  ## no critic (RequireArgUnpacking)
+	my $class = shift;
+	croak "Useless use of $class->new in void context" unless defined wantarray;
+	my $self = {
+		old_argv    => *ARGV{IO},
+		old_argvout => *ARGVOUT{IO},
+		old_argv_s  => $ARGV,
+	};
+	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
+	return bless $self, $class;
+}
+
+sub cleanup {
+	my $self = shift;
+	if ( defined( my $tied = tied(*ARGV) ) )
+		{ untie *ARGV if $tied->isa('File::Replace::Inplace::TiedArgv') }
+	# want to avoid "Undefined value assigned to typeglob" warnings here
+	if (exists $self->{old_argv}) {
+		*ARGV = $self->{old_argv} if defined($self->{old_argv});  ## no critic (RequireLocalizedPunctuationVars)
+		delete $self->{old_argv};
+	}
+	if (exists $self->{old_argvout}) {
+		*ARGVOUT = $self->{old_argvout} if defined($self->{old_argvout});  ## no critic (RequireLocalizedPunctuationVars)
+		delete $self->{old_argvout};
+	}
+	exists $self->{old_argv_s} and $ARGV = delete $self->{old_argv_s};  ## no critic (RequireLocalizedPunctuationVars)
+	return 1;
+}
+sub DESTROY { return shift->cleanup }
+
+{
+	## no critic (ProhibitMultiplePackages)
+	package # hide from pause
+		File::Replace::Inplace::TiedArgv;
+	use Carp;
+	use warnings::register;
+	use File::Replace;
+	
+	BEGIN {
+		require Tie::Handle::Base;
+		our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	}
+	
+	# this is mostly the same as %NEW_KNOWN_OPTS from File::Replace,
+	# except without "in_fh", and with this class's "files" option
+	my %TIEHANDLE_KNOWN_OPTS = map {$_=>1} qw/ debug layers create chmod
+		perms autocancel autofinish backup files /;
+	
+	sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
+		croak __PACKAGE__."->TIEHANDLE: bad number of args" unless @_ && @_%2;
+		my ($class,%args) = @_;
+		for (keys %args) { croak "$class->new: unknown option '$_'"
+			unless $TIEHANDLE_KNOWN_OPTS{$_} }
+		croak "$class->new: option 'files' must be an arrayref"
+			if exists $args{files} && ref $args{files} ne 'ARRAY';
+		my $self = $class->SUPER::TIEHANDLE();
+		$self->{firstline} = 1; # the very first line (for resetting $.)
+		$self->{starting} = 1; # for both starting and re-starting the loop over @ARGV
+		$self->{argv} = exists $args{files} ? delete $args{files} : \@ARGV;
+		$self->{repl_opts} = \%args;
+		return $self;
+	}
+	
+	sub READLINE {
+		my $self = shift;
+		if ($self->{firstline}) { $.=undef; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
+		if ( $self->EOF ) {
+			$self->{prev_linenum} = $.; # save state because closing the filehandle (->finish) resets $.
+			if ($self->{repl}) {
+				$self->{repl}->finish;
+				$self->{repl} = undef;
+			}
+			# we've reached the end of our @ARGV list, reset state
+			if ( !@{$self->{argv}} && !$self->{starting} ) {
+				select(STDOUT);  ## no critic (ProhibitOneArgSelect)
+				$self->{starting} = 1;
+				$self->{firstline} = 1;
+				return;
+			} # else
+			$self->{starting} = 0;
+			if (@{$self->{argv}}) {
+				$ARGV = shift @{$self->{argv}};  ## no critic (RequireLocalizedPunctuationVars)
+				$self->{repl} = File::Replace->new($ARGV, %{$self->{repl_opts}} );
+				$self->set_inner_handle($self->{repl}->in_fh);
+				*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
+			}
+			else { # we were called with an initially empty @ARGV
+				$ARGV = '-';  ## no critic (RequireLocalizedPunctuationVars)
+				$self->set_inner_handle(*STDIN);
+				*ARGVOUT = *STDOUT;  ## no critic (RequireLocalizedPunctuationVars)
+			}
+			select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
+		}
+		if (wantarray) {
+			my @rv = $self->SUPER::READLINE(@_);
+			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
+			return @rv;
+		}
+		elsif (defined wantarray) {
+			my $rv = $self->SUPER::READLINE(@_);
+			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
+			return $rv;
+		}
+		else {
+			$self->SUPER::READLINE(@_);
+			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
+			return;
+		}
+	}
+	
+	sub OPEN { croak "Can't reopen ARGV while tied to ".ref($_[0]) }  ## no critic (RequireArgUnpacking)
+	
+	sub UNTIE {
+		my $self = shift;
+		delete $self->{$_} for grep {!/^_/} keys %$self;
+		return $self->SUPER::UNTIE(@_);
+	}
+	
+	sub DESTROY {
+		my $self = shift;
+		# File::Replace destructor will warn on unclosed file
+		delete $self->{$_} for grep {!/^_/} keys %$self;
+		return $self->SUPER::DESTROY(@_);
+	}
+	
+}
+
 1;
 __END__
 
 =head1 Name
 
-Tie::Handle::Inplace - TODO Doc
+Tie::Handle::Inplace - Emulation of Perl's C<-i> switch via L<File::Replace|File::Replace>
 
 =head1 Synopsis
 
@@ -26,6 +153,18 @@ TODO Doc: Description
 
 This documentation describes version 0.09 of this module.
 B<This is a development version.>
+
+=head2 Differences to C<-i>
+
+=over
+
+=item *
+
+Files are always opened with the three-argument C<open>, meaning that things
+like piped C<open>s won't work. In that way, this module works more like
+Perl's newer double-diamond C<<< <<>> >>> operator.
+
+=back
 
 =head1 Author, Copyright, and License
 

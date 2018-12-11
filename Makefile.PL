@@ -15,6 +15,10 @@ WriteMakefile(
 				file    => 'lib/File/Replace.pm',
 				version => '0.09',
 			},
+			'File::Replace::Inplace' => {
+				file    => 'lib/File/Replace/Inplace.pm',
+				version => '0.09',
+			},
 			'Tie::Handle::Base' => {
 				file    => 'lib/Tie/Handle/Base.pm',
 				version => '0.09',
@@ -66,7 +70,8 @@ WriteMakefile(
 		'Exporter'               => 0,
 	},
 	TEST_REQUIRES  => {
-		# CPAN - none
+		# CPAN
+		'IPC::Run3::Shell'       => '0.56',
 		# Perl core modules
 		'Encode'                 => 0,
 		'Test::More'             => '1.302096',

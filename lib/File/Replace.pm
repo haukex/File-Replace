@@ -10,9 +10,10 @@ use File::Basename qw/fileparse/;
 use File::Spec::Functions qw/devnull/;
 use File::Copy ();
 use Fcntl qw/S_IMODE/;
-use Exporter 'import';
+use Exporter ();
 use File::Replace::SingleHandle ();
 use File::Replace::DualHandle ();
+use File::Replace::Inplace ();
 BEGIN {
 	require Hash::Util;
 	# apparently this wasn't available until 0.06 / Perl 5.8.9
@@ -32,8 +33,23 @@ BEGIN {
 
 our $VERSION = '0.09';
 
-our @EXPORT_OK = qw/ replace replace2 replace3 /;
+our @EXPORT_OK = qw/ replace replace2 replace3 inplace /;
 our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
+
+our $GlobalInplace;  ## no critic (ProhibitPackageVars)
+sub import {
+	my @mine;
+	for my $i (reverse 1..$#_)
+		{ unshift @mine, splice @_, $i, 1 if $_[$i]=~/^-i/ }
+	if (@mine) {
+		croak "$_[0]: can't specify more than one -i switch" if @mine>1;
+		my ($ext) = $mine[0]=~/^-i(.*)$/ or croak "failed to parse '$mine[0]'";
+		$GlobalInplace = File::Replace::Inplace->new(backup=>$ext);
+	}
+	goto &Exporter::import;
+}
+
+sub inplace { return File::Replace::Inplace->new(@_) }
 
 our $DISABLE_CHMOD;
 
@@ -75,7 +91,7 @@ sub new {  ## no critic (ProhibitExcessComplexity)
 		".${basename}_XXXXXXXXXX", DIR=>$path, SUFFIX=>'.tmp', UNLINK=>1 );
 	binmode $self->{ofh}, $self->{layers} if defined $self->{layers};
 	# input file
-	#TODO: A "noopen" option where the input file just isn't opened?
+	#TODO Later: A "noopen" option where the input file just isn't opened?
 	my $openmode = defined $self->{layers} ? '<'.$self->{layers} : '<';
 	if ( defined $self->{in_fh} ) {
 		croak "in_fh appears to be closed" unless defined fileno($self->{in_fh});
@@ -468,6 +484,19 @@ C<< tied(*$handle)->replace >>. You can also access the original, untied
 filehandles via C<< tied(*$handle)->in_fh >> and C<< tied(*$handle)->out_fh >>,
 but please don't C<close> or re-C<open> these handles as this may lead to
 confusion.
+
+=head2 C<inplace>
+
+This is a shorthand for the constructor of
+L<File::Replace::Inplace|File::Replace::Inplace>. That is:
+
+ use File::Replace qw/inplace/;
+ my $inplace = inplace(...);
+
+is the same as
+
+ use File::Replace::Inplace;
+ my $inplace = File::Replace::Inplace->new(...);
 
 =head1 Constructor Options
 
