@@ -106,9 +106,45 @@ subtest 'cmdline' => sub {
 	is slurp($bakfiles[1]), "Thr__\nF__r", 'backup file 2 correct';
 };
 
+subtest 'restart' => sub {
+	my @tmpfiles = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
+	my $stdin = newtempfn("Hello\nWorld");
+	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
+	open STDIN, '<', $stdin or die "Can't open STDIN: $!";
+	my @out;
+	{
+		my $inpl = File::Replace::Inplace->new( files=>[@tmpfiles] );
+		while (<>) {
+			print "$ARGV:$.: ".uc;
+		}
+		while (<>) {
+			push @out, "2/$ARGV:$.: ".uc;
+		}
+	}
+	close STDIN;
+	open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
+	is slurp($tmpfiles[0]), "$tmpfiles[0]:1: FOO\n$tmpfiles[0]:2: BAR", 'file 1 correct';
+	is slurp($tmpfiles[1]), "$tmpfiles[1]:3: QUZ\n$tmpfiles[1]:4: BAZ\n", 'file 2 correct';
+	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
+};
+subtest 'empty @ARGV' => sub {
+	my $stdin = newtempfn("Blah\nBlahhh");
+	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
+	open STDIN, '<', $stdin or die "Can't open STDIN: $!";
+	my @out;
+	local @ARGV = ();
+	{
+		my $inpl = File::Replace::Inplace->new();
+		while (<>) {
+			push @out, "+$ARGV:$.:".lc;
+		}
+	}
+	close STDIN;
+	open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
+	is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
+};
+
 #TODO: Tests for:
-# - @ARGV being initially empty (STDIN->STDOUT)
 # - @ARGV containing "-" (shouldn't work)
-# - emptying out @ARGV and re-starting
 
 done_testing;
