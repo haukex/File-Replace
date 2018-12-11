@@ -552,7 +552,8 @@ As with Perl's C<-i> option, if the string contains C<*> characters, then
 instead of the string being appended to the filename, each C<*> character is
 replaced with the original filename. So for example, if you specify
 C<< backup=>'orig_*' >>, then the backup of F<test.txt> will be
-F<orig_test.txt> (in the same path).
+F<orig_test.txt> in the same path - I<unlike> Perl's C<-i> option, this
+feature cannot be used to move files into a different directory.
 
 B<Warning:> If there is another process writing to the input file or creating files
 in the same directory as the input file, there is a potential for race conditions
