@@ -17,12 +17,15 @@ sub new {  ## no critic (RequireArgUnpacking)
 		old_argvout => *ARGVOUT{IO},
 		old_argv_s  => $ARGV,
 	};
+	my %args = @_; # just so we can extract the debug option
+	$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
 	return bless $self, $class;
 }
 
 sub cleanup {
 	my $self = shift;
+	$self->_debug(ref($self).": cleaning up, restoring previous ARGV* variables");
 	if ( defined( my $tied = tied(*ARGV) ) )
 		{ untie *ARGV if $tied->isa('File::Replace::Inplace::TiedArgv') }
 	# want to avoid "Undefined value assigned to typeglob" warnings here
@@ -35,9 +38,17 @@ sub cleanup {
 		delete $self->{old_argvout};
 	}
 	exists $self->{old_argv_s} and $ARGV = delete $self->{old_argv_s};  ## no critic (RequireLocalizedPunctuationVars)
+	delete $self->{debug};
 	return 1;
 }
 sub DESTROY { return shift->cleanup }
+
+sub _debug {  ## no critic (RequireArgUnpacking)
+	my $self = shift;
+	return 1 unless $self->{debug};
+	local ($",$,,$\) = (' ');
+	return print {$self->{debug}} @_;
+}
 
 {
 	## no critic (ProhibitMultiplePackages)
@@ -65,6 +76,7 @@ sub DESTROY { return shift->cleanup }
 		croak "$class->new: option 'files' must be an arrayref"
 			if exists $args{files} && ref $args{files} ne 'ARRAY';
 		my $self = $class->SUPER::TIEHANDLE();
+		$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
 		$self->{firstline} = 1; # the very first line (for resetting $.)
 		$self->{starting} = 1; # for both starting and re-starting the loop over @ARGV
 		$self->{argv} = exists $args{files} ? delete $args{files} : \@ARGV;
@@ -96,6 +108,7 @@ sub DESTROY { return shift->cleanup }
 				*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
 			}
 			else { # we were called with an initially empty @ARGV
+				$self->_debug(ref($self).": Reading from STDIN, writing to STDOUT");
 				$ARGV = '-';  ## no critic (RequireLocalizedPunctuationVars)
 				$self->set_inner_handle(*STDIN);
 				*ARGVOUT = *STDOUT;  ## no critic (RequireLocalizedPunctuationVars)
@@ -133,6 +146,8 @@ sub DESTROY { return shift->cleanup }
 		delete $self->{$_} for grep {!/^_/} keys %$self;
 		return $self->SUPER::DESTROY(@_);
 	}
+	
+	*_debug = \&File::Replace::Inplace::_debug;  ## no critic (ProtectPrivateVars)
 	
 }
 

@@ -40,11 +40,12 @@ our $GlobalInplace;  ## no critic (ProhibitPackageVars)
 sub import {
 	my @mine;
 	for my $i (reverse 1..$#_)
-		{ unshift @mine, splice @_, $i, 1 if $_[$i]=~/^-i/ }
-	if (@mine) {
-		croak "$_[0]: can't specify more than one -i switch" if @mine>1;
-		my ($ext) = $mine[0]=~/^-i(.*)$/ or croak "failed to parse '$mine[0]'";
-		$GlobalInplace = File::Replace::Inplace->new(backup=>$ext);
+		{ unshift @mine, splice @_, $i, 1 if $_[$i]=~/^-i|^-D$/ }
+	if ( @mine and my @i = grep {/^-i/} @mine ) {
+		croak "$_[0]: can't specify more than one -i switch" if @i>1;
+		my ($ext) = $i[0]=~/^-i(.*)$/ or croak "failed to parse '$i[0]'";
+		my $debug = grep {/^-D$/} @mine;
+		$GlobalInplace = File::Replace::Inplace->new(backup=>$ext, debug=>$debug);
 	}
 	goto &Exporter::import;
 }
@@ -507,7 +508,14 @@ command-line switch in oneliners. For example, you can say:
 
  perl -MFile::Replace=-i.bak -pe 's/foo/bar/g' file1.txt file2.txt
 
-and those files will be edited in-place using this module.
+and those files will be edited in-place using this module. In addition,
+you may specify a C<-D> "switch" in the import list to enable debugging
+output, as in:
+
+ perl -MFile::Replace=-i,-D -pe 's/x/y/g' foo.txt bar.txt
+
+This switch currently only affects the "inplace" operations described here,
+but this may be expanded upon in the future to enable debugging everywhere.
 
 =head1 Constructor Options
 
