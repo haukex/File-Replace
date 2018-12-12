@@ -188,7 +188,9 @@ B<This is a development version.>
 
 Files are always opened with the three-argument C<open>, meaning that things
 like piped C<open>s won't work. In that way, this module works more like
-Perl's newer double-diamond C<<< <<>> >>> operator.
+Perl's newer double-diamond C<<< <<>> >>> operator. This means, for example,
+that if C<@ARGV> contains C<"-">, then instead of C<STDIN>, a file literally
+named F<-> will be opened.
 
 =item *
 
@@ -199,7 +201,7 @@ are problems.
 =item *
 
 See the documentation of the C<backup> option at L<File::Replace/backup>
-for differences there.
+for differences to Perl's C<-i>.
 
 =back
 

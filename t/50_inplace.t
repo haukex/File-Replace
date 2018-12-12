@@ -33,7 +33,9 @@ use File_Replace_Testlib;
 
 use Test::More; #TODO Later: tests=>1;
 
-use File::Spec::Functions qw/catdir/;
+use Cwd qw/getcwd/;
+use File::Temp qw/tempdir/;
+use File::Spec::Functions qw/catdir catfile/;
 use IPC::Run3::Shell 0.56 ':FATAL', [ perl => { fail_on_stderr=>1,
 	show_cmd=>Test::More->builder->output },
 	$^X, '-wMstrict', '-I'.catdir($FindBin::Bin,'..','lib') ];
@@ -228,6 +230,25 @@ subtest 'initially empty @ARGV' => sub {
 	is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
 };
 
+subtest 'various file names' => sub {
+	my $prevdir = getcwd;
+	my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
+	chdir($tmpdir) or die "chdir $tmpdir: $!";
+	spew("-","sttdddiiiinnnnn hello\nxyz\n");
+	spew("echo|","piipppeee world\naa bb cc");
+	local @ARGV = ("-","echo|");
+	{
+		my $inpl = inplace();
+		while (<>) {
+			chomp;
+			print join(",", map {ucfirst} split), "\n";
+		}
+	}
+	is slurp("-"), "Sttdddiiiinnnnn,Hello\nXyz\n", 'file 1 correct';
+	is slurp("echo|"), "Piipppeee,World\nAa,Bb,Cc\n", 'file 2 correct';
+	chdir($prevdir) or warn "chdir $prevdir: $!";
+};
+
 subtest 'debug' => sub {
 	note "Expect some debug output here:";
 	my $db = Test::More->builder->output;
@@ -255,7 +276,5 @@ subtest 'misc failures' => sub {
 			close ARGV;
 		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
 };
-
-#TODO: Test that @ARGV containing "-" accesses a file literally named "-" (also document!)
 
 done_testing;
