@@ -198,64 +198,34 @@ subtest 'reset $. on eof' => sub {
 
 subtest 'restart with emptied @ARGV' => sub {
 	my @tmpfiles = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
-	if (0) { # this turns out to not really be portable, can probably be removed
-		my $stdin = newtempfn("Hello\nWorld");
-		open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
-		open STDIN, '<', $stdin or die "Can't open STDIN: $!";
-		my @out;
-		{
-			my $inpl = File::Replace::Inplace->new( files=>[@tmpfiles] );
-			while (<>) {
-				print "$ARGV:$.: ".uc;
-			}
-			while (<>) {
-				push @out, "2/$ARGV:$.: ".uc;
-			}
+	tie *STDIN, 'Tie::Handle::MockStdin', "Hello\n", "World";
+	my @out;
+	{
+		my $inpl = File::Replace::Inplace->new( files=>[@tmpfiles] );
+		while (<>) {
+			print "$ARGV:$.: ".uc;
 		}
-		close STDIN;
-		open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
-		is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
+		while (<>) {
+			push @out, "2/$ARGV:$.: ".uc;
+		}
 	}
-	else {
-		is perl('-MFile::Replace=-i','-e',
-			q{ print "$ARGV:$.: ".uc while <>; print STDERR "2/$ARGV:$.: ".uc while <> },
-			@tmpfiles, { fail_on_stderr=>0, stdin=>\"Hello\nWorld",
-				stderr=>\(my $stderr) } ), '', 'no output';
-		#TODO Later: Figure out why $. is broken here on 5.8.x
-		my $expect = $] lt '5.010' ? "2/-:0: HELLO\n2/-:0: WORLD" # this is a workaround!
-			: "2/-:1: HELLO\n2/-:2: WORLD"; # this is what we would actually expect
-		is $stderr, $expect, 'stderr looks ok';
-	}
+	untie *STDIN;
+	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
 	is slurp($tmpfiles[0]), "$tmpfiles[0]:1: FOO\n$tmpfiles[0]:2: BAR", 'file 1 correct';
 	is slurp($tmpfiles[1]), "$tmpfiles[1]:3: QUZ\n$tmpfiles[1]:4: BAZ\n", 'file 2 correct';
 };
 subtest 'initially empty @ARGV' => sub {
-	if (0) { # this turns out to not really be portable, can probably be removed
-		my $stdin = newtempfn("Blah\nBlahhh");
-		open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
-		open STDIN, '<', $stdin or die "Can't open STDIN: $!";
-		my @out;
-		local @ARGV = ();
-		{
-			my $inpl = File::Replace::Inplace->new();
-			while (<>) {
-				push @out, "+$ARGV:$.:".lc;
-			}
+	tie *STDIN, 'Tie::Handle::MockStdin', "Blah\n", "Blahhh";
+	my @out;
+	local @ARGV = ();
+	{
+		my $inpl = File::Replace::Inplace->new();
+		while (<>) {
+			push @out, "+$ARGV:$.:".lc;
 		}
-		close STDIN;
-		open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
-		is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
 	}
-	else {
-		is perl('-MFile::Replace=-i','-e',
-			q{ print STDERR "+$ARGV:$.:".lc while <> },
-			{ fail_on_stderr=>0, stdin=>\"Blah\nBlahhh",
-				stderr=>\(my $stderr) } ), '', 'no output';
-		#TODO Later: Figure out why $. is broken here on 5.8.x
-		my $expect = $] lt '5.010' ? "+-:0:blah\n+-:0:blahhh" # this is a workaround!
-			: "+-:1:blah\n+-:2:blahhh"; # this is what we would actually expect
-		is $stderr, $expect, 'stderr looks ok';
-	}
+	untie *STDIN;
+	is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
 };
 
 subtest 'debug' => sub {

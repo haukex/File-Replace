@@ -113,7 +113,7 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 				$self->_debug(ref($self).": Reading from STDIN, writing to STDOUT");
 				$ARGV = '-';  ## no critic (RequireLocalizedPunctuationVars)
 				$self->set_inner_handle(*STDIN);
-				*ARGVOUT = *STDOUT;  ## no critic (RequireLocalizedPunctuationVars)
+				*ARGVOUT = *STDOUT{IO};  ## no critic (RequireLocalizedPunctuationVars)
 			}
 			select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
 		}

@@ -172,5 +172,31 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 		return 1;
 	}
 }
+{
+	package Tie::Handle::MockStdin;
+	require Tie::Handle::Base;
+	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+	sub TIEHANDLE {
+		my ($class, @lines) = @_;
+		my $self = $class->SUPER::TIEHANDLE();
+		$self->{lines} = \@lines;
+		$self->{lineno} = 0;
+		return $self;
+	}
+	sub READLINE {
+		my $self = shift;
+		if (wantarray) {
+			my @o = @{$self->{lines}};
+			@{$self->{lines}} = ();
+			$. = ($self->{lineno} + @o);
+			return @o;
+		} # else
+		$. = ++$self->{lineno};
+		return shift @{$self->{lines}};
+	}
+	sub EOF {
+		return !@{shift->{lines}}
+	}
+}
 
 1;
