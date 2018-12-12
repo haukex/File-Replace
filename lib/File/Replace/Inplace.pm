@@ -17,6 +17,7 @@ sub new {  ## no critic (RequireArgUnpacking)
 		old_argvout => *ARGVOUT{IO},
 		old_argv_s  => $ARGV,
 	};
+	croak "$class->new: bad number of args" if @_%2;
 	my %args = @_; # just so we can extract the debug option
 	$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;

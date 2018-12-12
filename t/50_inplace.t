@@ -239,11 +239,12 @@ subtest 'debug' => sub {
 subtest 'misc failures' => sub {
 	like exception { inplace(); 1 },
 		qr/\bUseless use of .*->new in void context\b/, 'inplace in void ctx';
-	diag 'The following "Odd number of elements in hash assignment" warning is expected and can be ignored'; #TODO: author tests make warnings fatal, find better solution
 	like exception { my $x=inplace('foo') },
-		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 1';
+		qr/\bnew: bad number of args\b/, 'bad nr of args 1';
 	like exception { File::Replace::Inplace::TiedArgv::TIEHANDLE() },
 		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 2';
+	like exception { File::Replace::Inplace::TiedArgv::TIEHANDLE('x','y') },
+		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 3';
 	like exception { my $x=inplace(badarg=>1) },
 		qr/\bunknown option\b/, 'unknown arg';
 	like exception { my $x=inplace(files=>"foo") },
