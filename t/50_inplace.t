@@ -91,6 +91,21 @@ subtest 'backup' => sub {
 	is slurp($bfn), "Foo\nBar", 'backup file correct';
 };
 
+subtest 'readline contexts' => sub { # we test scalar everywhere, need to test the others too
+	my @tmpfiles = (newtempfn("So"), newtempfn("Many\nTests\nis"), newtempfn("fun\n!!!"));
+	{
+		my $inpl = inplace( files=>[@tmpfiles] );
+		<>;
+		<>;
+		print "Hi?\n";
+		my @got = <>;
+		is_deeply \@got, ["Tests\n","is","fun\n","!!!"], 'list ctx' or diag explain \@got;
+	}
+	is slurp($tmpfiles[0]), "", 'file 1 correct';
+	is slurp($tmpfiles[1]), "Hi?\n", 'file 2 correct';
+	is slurp($tmpfiles[2]), "", 'file 3 correct';
+};
+
 subtest 'cmdline' => sub {
 	my @tmpfiles = (newtempfn("One\nTwo\n"), newtempfn("Three\nFour"));
 	is perl('-MFile::Replace=-i','-pe','s/[aeiou]/_/gi', @tmpfiles), '', 'no output';

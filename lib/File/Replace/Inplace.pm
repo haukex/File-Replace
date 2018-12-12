@@ -84,6 +84,8 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 		return $self;
 	}
 	
+	our $_READLINE_RECURSEOK = 1;
+	
 	sub READLINE {
 		my $self = shift;
 		if ($self->{firstline}) { $.=0; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
@@ -118,6 +120,12 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 		if (wantarray) {
 			my @rv = $self->SUPER::READLINE(@_);
 			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
+			# loop over all remaining files by calling ourself again
+			if ( $_READLINE_RECURSEOK ) {
+				local $_READLINE_RECURSEOK = 0;
+				while ( my @more = $self->READLINE(@_) )
+					{ push @rv, @more }
+			}
 			return @rv;
 		}
 		elsif (defined wantarray) {
