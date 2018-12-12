@@ -114,7 +114,7 @@ subtest 'restart' => sub {
 		while (<>) {
 			print "X:$_";
 		}
-		@ARGV = ($tfn);
+		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
 		while (<>) {
 			print "Y:$_";
 		}
@@ -123,40 +123,58 @@ subtest 'restart' => sub {
 };
 subtest 'restart with emptied @ARGV' => sub {
 	my @tmpfiles = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
-	my $stdin = newtempfn("Hello\nWorld");
-	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
-	open STDIN, '<', $stdin or die "Can't open STDIN: $!";
-	my @out;
-	{
-		my $inpl = File::Replace::Inplace->new( files=>[@tmpfiles] );
-		while (<>) {
-			print "$ARGV:$.: ".uc;
+	if (0) { # this turns out to not really be portable, can probably be removed
+		my $stdin = newtempfn("Hello\nWorld");
+		open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
+		open STDIN, '<', $stdin or die "Can't open STDIN: $!";
+		my @out;
+		{
+			my $inpl = File::Replace::Inplace->new( files=>[@tmpfiles] );
+			while (<>) {
+				print "$ARGV:$.: ".uc;
+			}
+			while (<>) {
+				push @out, "2/$ARGV:$.: ".uc;
+			}
 		}
-		while (<>) {
-			push @out, "2/$ARGV:$.: ".uc;
-		}
+		close STDIN;
+		open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
+		is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
 	}
-	close STDIN;
-	open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
+	else {
+		is perl('-MFile::Replace=-i','-e',
+			q{ print "$ARGV:$.: ".uc while <>; print STDERR "2/$ARGV:$.: ".uc while <> },
+			@tmpfiles, { fail_on_stderr=>0, stdin=>\"Hello\nWorld",
+				stderr=>\(my $stderr) } ), '', 'no output';
+		is $stderr, "2/-:1: HELLO\n2/-:2: WORLD", 'stderr looks ok';
+	}
 	is slurp($tmpfiles[0]), "$tmpfiles[0]:1: FOO\n$tmpfiles[0]:2: BAR", 'file 1 correct';
 	is slurp($tmpfiles[1]), "$tmpfiles[1]:3: QUZ\n$tmpfiles[1]:4: BAZ\n", 'file 2 correct';
-	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
 };
 subtest 'initially empty @ARGV' => sub {
-	my $stdin = newtempfn("Blah\nBlahhh");
-	open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
-	open STDIN, '<', $stdin or die "Can't open STDIN: $!";
-	my @out;
-	local @ARGV = ();
-	{
-		my $inpl = File::Replace::Inplace->new();
-		while (<>) {
-			push @out, "+$ARGV:$.:".lc;
+	if (0) { # this turns out to not really be portable, can probably be removed
+		my $stdin = newtempfn("Blah\nBlahhh");
+		open my $oldin, "<&", \*STDIN or die "Can't dup STDIN: $!";  ## no critic (RequireBriefOpen)
+		open STDIN, '<', $stdin or die "Can't open STDIN: $!";
+		my @out;
+		local @ARGV = ();
+		{
+			my $inpl = File::Replace::Inplace->new();
+			while (<>) {
+				push @out, "+$ARGV:$.:".lc;
+			}
 		}
+		close STDIN;
+		open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
+		is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
 	}
-	close STDIN;
-	open STDIN, "<&", $oldin or die "Can't restore STDIN: $!";
-	is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
+	else {
+		is perl('-MFile::Replace=-i','-e',
+			q{ print STDERR "+$ARGV:$.:".lc while <> },
+			{ fail_on_stderr=>0, stdin=>\"Blah\nBlahhh",
+				stderr=>\(my $stderr) } ), '', 'no output';
+		is $stderr, "+-:1:blah\n+-:2:blahhh", 'stderr looks ok';
+	}
 };
 
 #TODO: Tests for:
