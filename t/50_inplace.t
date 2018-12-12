@@ -157,10 +157,23 @@ subtest 'restart' => sub {
 		while (<>) {
 			print "Y/$.:$_";
 		}
-		# also let's check cleanup being called twice:
-		$inpl->cleanup;
 	}
 	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'output ok';
+};
+
+subtest 'cleanup' => sub { # mostly just to make code coverage happy
+	my $tmpfile = newtempfn("Yay\nHooray");
+	{
+		my $inpl = inplace( files=>[$tmpfile] );
+		print "<$.>$_" while <>;
+		$inpl->cleanup;
+		tie *ARGV, 'Tie::Handle::Base';
+		$inpl->{old_argv} = undef;
+		$inpl->{old_argvout} = undef;
+		$inpl->cleanup;
+		untie *ARGV;
+	}
+	is slurp($tmpfile), "<1>Yay\n<2>Hooray", 'file correct';
 };
 
 subtest 'reset $. on eof' => sub {
@@ -271,7 +284,6 @@ subtest 'misc failures' => sub {
 		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
 };
 
-#TODO: Tests for:
-# - @ARGV containing "-" (should access a file literally named "-") - also document!
+#TODO: Test that @ARGV containing "-" accesses a file literally named "-" (also document!)
 
 done_testing;
