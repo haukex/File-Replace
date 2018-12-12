@@ -86,7 +86,7 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 	
 	sub READLINE {
 		my $self = shift;
-		if ($self->{firstline}) { $.=undef; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
+		if ($self->{firstline}) { $.=0; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
 		if ( $self->EOF ) {
 			$self->{prev_linenum} = $.; # save state because closing the filehandle (->finish) resets $.
 			if ($self->{repl}) {
