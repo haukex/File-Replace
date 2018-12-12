@@ -169,7 +169,7 @@ TODO Doc: Description
 This documentation describes version 0.09 of this module.
 B<This is a development version.>
 
-=head2 Differences to C<-i>
+=head2 Differences to Perl's C<-i>
 
 =over
 
@@ -178,6 +178,12 @@ B<This is a development version.>
 Files are always opened with the three-argument C<open>, meaning that things
 like piped C<open>s won't work. In that way, this module works more like
 Perl's newer double-diamond C<<< <<>> >>> operator.
+
+=item *
+
+Problems like not being able to open a file would only cause a warning with
+Perl's C<-i> option, this module is more strict and will C<die> if there
+are problems.
 
 =item *
 

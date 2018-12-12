@@ -112,15 +112,36 @@ subtest 'restart' => sub {
 	{
 		my $inpl = File::Replace::Inplace->new();
 		while (<>) {
-			print "X:$_";
+			print "X/$.:$_";
 		}
 		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
 		while (<>) {
-			print "Y:$_";
+			print "Y/$.:$_";
 		}
 	}
-	is slurp($tfn), "Y:X:111\nY:X:222\nY:X:333\n", 'output ok';
+	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'output ok';
 };
+
+subtest 'reset $. on eof' => sub {
+	my @tmpfiles = (newtempfn("One\nTwo\nThree\n"), newtempfn("Four\nFive\nSix"));
+	local @ARGV = @tmpfiles;
+	{
+		my $inpl = File::Replace::Inplace->new();
+		while (<>) {
+			print "($.)$_";
+		}
+		# as documented in eof, this should reset $. per file
+		continue { close ARGV if eof }
+		@ARGV = ($tmpfiles[0]);  ## no critic (RequireLocalizedPunctuationVars)
+		while (<>) {
+			print "[$.]$_";
+		}
+		continue { close ARGV if eof }
+	}
+	is slurp($tmpfiles[0]), "[1](1)One\n[2](2)Two\n[3](3)Three\n", 'file 1 correct';
+	is slurp($tmpfiles[1]), "(1)Four\n(2)Five\n(3)Six", 'file 2 correct';
+};
+
 subtest 'restart with emptied @ARGV' => sub {
 	my @tmpfiles = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	if (0) { # this turns out to not really be portable, can probably be removed
@@ -185,6 +206,5 @@ subtest 'initially empty @ARGV' => sub {
 
 #TODO: Tests for:
 # - @ARGV containing "-" (shouldn't work)
-# - resetting line numbering using eof (see "perldoc -f eof")
 
 done_testing;
