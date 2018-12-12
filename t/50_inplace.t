@@ -106,6 +106,30 @@ subtest 'cmdline' => sub {
 	is slurp($bakfiles[1]), "Thr__\nF__r", 'backup file 2 correct';
 };
 
+subtest '-i in import list' => sub {
+	my @tmpfiles = (newtempfn("XX\nYY\n"), newtempfn("ABC\nDEF\nGHI"));
+	local @ARGV = @tmpfiles;
+	local $ARGV = "foobar";
+	my $oldargvout = \*ARGVOUT;
+	my $oldargv = \*ARGV;
+	File::Replace->import('-i');
+	while (<>) {
+		print "$ARGV:$.:".lc;
+	}
+	is slurp($tmpfiles[0]), "$tmpfiles[0]:1:xx\n$tmpfiles[0]:2:yy\n", 'file 1 correct';
+	is slurp($tmpfiles[1]), "$tmpfiles[1]:3:abc\n$tmpfiles[1]:4:def\n$tmpfiles[1]:5:ghi", 'file 2 correct';
+	$File::Replace::GlobalInplace = undef;
+	is @ARGV, 0, '@ARGV empty';
+	is $ARGV, 'foobar', '$ARGV restored';
+	is \*ARGVOUT, $oldargvout, '$ARGVOUT restored';
+	is \*ARGV, $oldargv, '$ARGV restored';
+	# a couple more checks for code coverage
+	File::Replace->import('-D');
+	is undef, $File::Replace::GlobalInplace;
+	like exception {File::Replace->import('-i','-D','-i.bak')},
+		qr/\bmore than one -i\b/, 'multiple -i\'s fails'
+};
+
 subtest 'restart' => sub {
 	my $tfn = newtempfn("111\n222\n333\n");
 	local @ARGV = ($tfn);
@@ -118,6 +142,8 @@ subtest 'restart' => sub {
 		while (<>) {
 			print "Y/$.:$_";
 		}
+		# also let's check cleanup being called twice:
+		$inpl->cleanup;
 	}
 	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'output ok';
 };
@@ -204,7 +230,33 @@ subtest 'initially empty @ARGV' => sub {
 	}
 };
 
+subtest 'debug' => sub {
+	note "Expect some debug output here:";
+	my $db = Test::More->builder->output;
+	ok( do { my $x=File::Replace::Inplace->new(debug=>$db); 1 }, 'debug w/ handle' );
+	local *STDERR = $db;
+	ok( do { my $x=File::Replace::Inplace->new(debug=>1); 1 }, 'debug w/o handle' );
+};
+
+subtest 'misc failures' => sub {
+	like exception { inplace(); 1 },
+		qr/\bUseless use of .*->new in void context\b/, 'inplace in void ctx';
+	diag 'The following "Odd number of elements in hash assignment" warning is expected and can be ignored'; #TODO: author tests make warnings fatal, find better solution
+	like exception { my $x=inplace('foo') },
+		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 1';
+	like exception { File::Replace::Inplace::TiedArgv::TIEHANDLE() },
+		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 2';
+	like exception { my $x=inplace(badarg=>1) },
+		qr/\bunknown option\b/, 'unknown arg';
+	like exception { my $x=inplace(files=>"foo") },
+		qr/\bmust be an arrayref\b/, 'bad file arg';
+	like exception {
+			my $i = inplace();
+			open ARGV, '<', newtempfn or die $!;
+		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
+};
+
 #TODO: Tests for:
-# - @ARGV containing "-" (shouldn't work)
+# - @ARGV containing "-" (should access a file literally named "-") - also document!
 
 done_testing;
