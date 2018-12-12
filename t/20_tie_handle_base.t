@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>52;
+use Test::More tests=>54;
 
 use Encode qw/encode/;
 
@@ -47,6 +47,7 @@ isa_ok tie(*$fh, 'Tie::Handle::Base', $innerfh),
 is tied(*$fh)->innerhandle, $innerfh, 'innerhandle';
 ok !eof($fh), 'eof 1';
 is ''.<$fh>, "Foo\n", 'readline <>';
+is $., 1, '$. 1';
 is tell($fh), 4, 'tell';
 ok eof($fh), 'eof 2';
 ok print($fh "Bar\n"), 'print';
@@ -60,6 +61,7 @@ is sysread($fh,$buf,3), 3, 'sysread';
 is $buf, "Bar", 'sysread buf';
 is getc($fh), "\n", 'getc';
 is_deeply [readline($fh)], ["Quz\n"," Baz"], 'readline';
+is $., 3, '$. 2';
 is fileno($fh), fileno($innerfh), 'fileno';
 ok close($fh), 'close';
 ok !defined(fileno($innerfh)), 'closed fileno';
