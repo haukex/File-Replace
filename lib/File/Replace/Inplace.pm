@@ -86,7 +86,7 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 	
 	our $_READLINE_RECURSEOK = 1;
 	
-	sub READLINE {
+	sub READLINE {  ## no critic (RequireArgUnpacking)
 		my $self = shift;
 		if ($self->{firstline}) { $.=0; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
 		if ( $self->EOF ) {

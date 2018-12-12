@@ -188,10 +188,10 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 		if (wantarray) {
 			my @o = @{$self->{lines}};
 			@{$self->{lines}} = ();
-			$. = ($self->{lineno} + @o);
+			$. = ($self->{lineno} + @o);  ## no critic (RequireLocalizedPunctuationVars)
 			return @o;
 		} # else
-		$. = ++$self->{lineno};
+		$. = ++$self->{lineno};  ## no critic (RequireLocalizedPunctuationVars)
 		return shift @{$self->{lines}};
 	}
 	sub EOF {

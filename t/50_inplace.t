@@ -133,14 +133,14 @@ subtest '-i in import list' => sub {
 	}
 	is slurp($tmpfiles[0]), "$tmpfiles[0]:1:xx\n$tmpfiles[0]:2:yy\n", 'file 1 correct';
 	is slurp($tmpfiles[1]), "$tmpfiles[1]:3:abc\n$tmpfiles[1]:4:def\n$tmpfiles[1]:5:ghi", 'file 2 correct';
-	$File::Replace::GlobalInplace = undef;
+	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
 	is @ARGV, 0, '@ARGV empty';
 	is $ARGV, 'foobar', '$ARGV restored';
 	is \*ARGVOUT, $oldargvout, '$ARGVOUT restored';
 	is \*ARGV, $oldargv, '$ARGV restored';
 	# a couple more checks for code coverage
 	File::Replace->import('-D');
-	is undef, $File::Replace::GlobalInplace;
+	is undef, $File::Replace::GlobalInplace, 'debug flag only has no effect';  ## no critic (ProhibitPackageVars)
 	like exception {File::Replace->import('-i','-D','-i.bak')},
 		qr/\bmore than one -i\b/, 'multiple -i\'s fails'
 };
@@ -250,7 +250,8 @@ subtest 'misc failures' => sub {
 		qr/\bmust be an arrayref\b/, 'bad file arg';
 	like exception {
 			my $i = inplace();
-			open ARGV, '<', newtempfn or die $!;
+			open ARGV, '<', newtempfn or die $!;  ## no critic (ProhibitBarewordFileHandles)
+			close ARGV;
 		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
 };
 
