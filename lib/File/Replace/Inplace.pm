@@ -21,12 +21,14 @@ sub new {  ## no critic (RequireArgUnpacking)
 	my %args = @_; # just so we can extract the debug option
 	$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
-	return bless $self, $class;
+	bless $self, $class;
+	$self->_debug("$class->new: stored ARGV* variables and tied ARGV\n");
+	return $self;
 }
 
 sub cleanup {
 	my $self = shift;
-	$self->_debug(ref($self).": cleaning up, restoring previous ARGV* variables");
+	$self->_debug(ref($self)."->cleanup: restoring previous ARGV* variables\n");
 	if ( defined( my $tied = tied(*ARGV) ) )
 		{ untie *ARGV if $tied->isa('File::Replace::Inplace::TiedArgv') }
 	# want to avoid "Undefined value assigned to typeglob" warnings here
