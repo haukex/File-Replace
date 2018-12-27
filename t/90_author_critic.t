@@ -78,7 +78,7 @@ use Test::MinimumVersion;
 my @tasks;
 for my $file (@PERLFILES) {
 	critic_ok($file);
-	minimum_version_ok($file, '5.008');
+	minimum_version_ok($file, '5.008001');
 	open my $fh, '<', $file or die $!;  ## no critic (RequireCarping)
 	while (<$fh>) {
 		s/\A\s+|\s+\z//g;
