@@ -3,147 +3,100 @@ package File::Replace::Inplace;
 use warnings;
 use strict;
 use Carp;
-use warnings::register;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
 our $VERSION = '0.09';
 
+our @CARP_NOT = qw/ File::Replace /;
+
 sub new {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak "Useless use of $class->new in void context" unless defined wantarray;
-	my $self = {
-		old_argv    => *ARGV{IO},
-		old_argvout => *ARGVOUT{IO},
-		old_argv_s  => $ARGV,
-	};
 	croak "$class->new: bad number of args" if @_%2;
 	my %args = @_; # just so we can extract the debug option
+	my $self = {};
 	$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
 	bless $self, $class;
-	$self->_debug("$class->new: stored ARGV* variables and tied ARGV\n");
+	$self->_debug("$class->new: tied ARGV\n");
 	return $self;
 }
-
+*_debug = \&File::Replace::_debug;
 sub cleanup {
 	my $self = shift;
-	$self->_debug(ref($self)."->cleanup: restoring previous ARGV* variables\n");
-	if ( defined( my $tied = tied(*ARGV) ) )
-		{ untie *ARGV if $tied->isa('File::Replace::Inplace::TiedArgv') }
-	# want to avoid "Undefined value assigned to typeglob" warnings here
-	if (exists $self->{old_argv}) {
-		*ARGV = $self->{old_argv} if defined($self->{old_argv});  ## no critic (RequireLocalizedPunctuationVars)
-		delete $self->{old_argv};
-	}
-	if (exists $self->{old_argvout}) {
-		*ARGVOUT = $self->{old_argvout} if defined($self->{old_argvout});  ## no critic (RequireLocalizedPunctuationVars)
-		delete $self->{old_argvout};
-	}
-	exists $self->{old_argv_s} and $ARGV = delete $self->{old_argv_s};  ## no critic (RequireLocalizedPunctuationVars)
+	if ( defined( my $tied = tied(*ARGV) ) ) {
+		if ( $tied->isa('File::Replace::Inplace::TiedArgv') ) {
+			$self->_debug(ref($self)."->cleanup: untieing ARGV\n");
+			untie *ARGV;
+		}
+	;}
 	delete $self->{debug};
 	return 1;
 }
 sub DESTROY { return shift->cleanup }
-
-sub _debug {  ## no critic (RequireArgUnpacking)
-	my $self = shift;
-	return 1 unless $self->{debug};
-	local ($",$,,$\) = (' ');
-	return print {$self->{debug}} @_;
-}
 
 {
 	## no critic (ProhibitMultiplePackages)
 	package # hide from pause
 		File::Replace::Inplace::TiedArgv;
 	use Carp;
-	use warnings::register;
 	use File::Replace;
 	
 	BEGIN {
-		require Tie::Handle::Base;
-		our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
+		require Tie::Handle::Argv;
+		our @ISA = qw/ Tie::Handle::Argv /;  ## no critic (ProhibitExplicitISA)
 	}
 	
 	# this is mostly the same as %NEW_KNOWN_OPTS from File::Replace,
-	# except without "in_fh", and with this class's "files" option
+	# except without "in_fh" (note "debug" is also passed to the superclass)
 	my %TIEHANDLE_KNOWN_OPTS = map {$_=>1} qw/ debug layers create chmod
-		perms autocancel autofinish backup files /;
+		perms autocancel autofinish backup /;
 	
 	sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 		croak __PACKAGE__."->TIEHANDLE: bad number of args" unless @_ && @_%2;
 		my ($class,%args) = @_;
 		for (keys %args) { croak "$class->new: unknown option '$_'"
 			unless $TIEHANDLE_KNOWN_OPTS{$_} }
-		croak "$class->new: option 'files' must be an arrayref"
-			if exists $args{files} && ref $args{files} ne 'ARRAY';
-		my $self = $class->SUPER::TIEHANDLE();
-		$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
-		$self->{firstline} = 1; # the very first line (for resetting $.)
-		$self->{starting} = 1; # for both starting and re-starting the loop over @ARGV
-		$self->{argv} = exists $args{files} ? delete $args{files} : \@ARGV;
+		my $self = $class->SUPER::TIEHANDLE( debug => $args{debug} );
 		$self->{repl_opts} = \%args;
 		return $self;
 	}
 	
-	our $_READLINE_RECURSEOK = 1;
-	
-	sub READLINE {  ## no critic (RequireArgUnpacking)
+	sub OPEN {
 		my $self = shift;
-		if ($self->{firstline}) { $.=0; $self->{firstline}=0 }  ## no critic (RequireLocalizedPunctuationVars)
-		if ( $self->EOF ) {
-			$self->{prev_linenum} = $.; # save state because closing the filehandle (->finish) resets $.
-			if ($self->{repl}) {
-				$self->{repl}->finish;
-				$self->{repl} = undef;
-			}
-			# we've reached the end of our @ARGV list, reset state
-			if ( !@{$self->{argv}} && !$self->{starting} ) {
-				select(STDOUT);  ## no critic (ProhibitOneArgSelect)
-				$self->{starting} = 1;
-				$self->{firstline} = 1;
-				return;
-			} # else
-			$self->{starting} = 0;
-			if (@{$self->{argv}}) {
-				$ARGV = shift @{$self->{argv}};  ## no critic (RequireLocalizedPunctuationVars)
-				$self->{repl} = File::Replace->new($ARGV, %{$self->{repl_opts}} );
-				$self->set_inner_handle($self->{repl}->in_fh);
-				*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
-			}
-			else { # we were called with an initially empty @ARGV
-				$self->_debug(ref($self).": Reading from STDIN, writing to STDOUT");
-				$ARGV = '-';  ## no critic (RequireLocalizedPunctuationVars)
-				$self->set_inner_handle(*STDIN);
-				*ARGVOUT = *STDOUT{IO};  ## no critic (RequireLocalizedPunctuationVars)
-			}
-			select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
-		}
-		if (wantarray) {
-			my @rv = $self->SUPER::READLINE(@_);
-			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
-			# loop over all remaining files by calling ourself again
-			if ( $_READLINE_RECURSEOK ) {
-				local $_READLINE_RECURSEOK = 0;
-				while ( my @more = $self->READLINE(@_) )
-					{ push @rv, @more }
-			}
-			return @rv;
-		}
-		elsif (defined wantarray) {
-			my $rv = $self->SUPER::READLINE(@_);
-			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
-			return $rv;
+		croak "bad number of arguments to open" if @_<1||@_>2;
+		my ($mode,$filename) = Tie::Handle::Base::open_parse(@_);
+		$mode =~ /^\s*<\s*(:\w.*)?$/ or croak "unuspported mode '$mode'";
+		my %opts;
+		$opts{layers} = $1 if $1;
+		if ($filename eq '-') {
+			$self->_debug(ref($self).": Reading from STDIN, writing to STDOUT");
+			$self->set_inner_handle(*STDIN);
+			binmode STDIN, $opts{layers} if $opts{layers};
+			*ARGVOUT = *STDOUT{IO};  ## no critic (RequireLocalizedPunctuationVars)
 		}
 		else {
-			$self->SUPER::READLINE(@_);
-			$. += delete $self->{prev_linenum} if $self->{prev_linenum};
-			return;
+			$self->{repl} = File::Replace->new($filename, %{$self->{repl_opts}}, %opts );
+			$self->set_inner_handle($self->{repl}->in_fh);
+			*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
 		}
+		select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
 	}
 	
-	sub OPEN { croak "Can't reopen ARGV while tied to ".ref($_[0]) }  ## no critic (RequireArgUnpacking)
+	sub inner_close {
+		my $self = shift;
+		if ( $self->{repl} ) {
+			$self->{repl}->finish;
+			$self->{repl} = undef;
+		}
+		return 1;
+	}
+	
+	sub sequence_end {
+		my $self = shift;
+		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
+	}
 	
 	sub UNTIE {
 		my $self = shift;
@@ -157,8 +110,6 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 		delete $self->{$_} for grep {!/^_/} keys %$self;
 		return $self->SUPER::DESTROY(@_);
 	}
-	
-	*_debug = \&File::Replace::Inplace::_debug;  ## no critic (ProtectPrivateVars)
 	
 }
 
@@ -189,14 +140,17 @@ B<This is a development version.>
 Files are always opened with the three-argument C<open>, meaning that things
 like piped C<open>s won't work. In that way, this module works more like
 Perl's newer double-diamond C<<< <<>> >>> operator. This means, for example,
-that if C<@ARGV> contains C<"-">, then instead of C<STDIN>, a file literally
-named F<-> will be opened.
+that if C<@ARGV> contains C<"<foo">, then instead of C<STDIN>, a file literally
+named F<< <foo >> will be opened, instead of a file F<foo>.
+
+=for comment
+TODO: test the above statement
 
 =item *
 
-Problems like not being able to open a file would only cause a warning with
-Perl's C<-i> option, this module is more strict and will C<die> if there
-are problems.
+Problems like not being able to open a file would normally only cause a warning
+when using Perl's C<-i> option, in this module it depends on the setting of
+the C<create> option, see L<File::Replace/create>.
 
 =item *
 

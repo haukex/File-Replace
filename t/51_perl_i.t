@@ -6,6 +6,9 @@ use strict;
 
 Tests for the Perl module File::Replace::Inplace.
 
+Actually, these are tests for Perl's C<-i> switch, so that I can
+compare their results to my tests for the module.
+
 =head1 Author, Copyright, and License
 
 Copyright (c) 2018 Hauke Daempfling (haukex@zero-g.net)
@@ -31,40 +34,30 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>18;
+use Test::More tests=>10;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
-use File::Spec::Functions qw/catdir catfile/;
-use IPC::Run3::Shell 0.56 ':FATAL', [ perl => { fail_on_stderr=>1,
-	show_cmd=>Test::More->builder->output },
-	$^X, '-wMstrict', '-I'.catdir($FindBin::Bin,'..','lib') ];
 
-# Note: At the very first call to "eof", the "most recent filehandle" won't be ARGV.
+use warnings FATAL => 'inplace';
 my $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
 
-## no critic (RequireCarping)
-
-BEGIN {
-	use_ok 'File::Replace::Inplace';
-	use_ok 'File::Replace', 'inplace';
-}
-use warnings FATAL => 'File::Replace';
-
 subtest 'basic test' => sub {
-	local (*ARGV, *ARGVOUT, $.);
+	local (*ARGV, *ARGVOUT, $.); # so their scope is limited to the test
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	local @ARGV = @tf;
 	my @states;
 	{
-		my $inpl = File::Replace::Inplace->new();
+		local $^I = '';
+		# WARNING: eof() modifies $ARGV (and potentially others), so don't do [$ARGV, $., eof, eof()]!!
+		# See e.g. https://www.perlmonks.org/?node_id=289044 and https://www.perlmonks.org/?node_id=1076954
+		# and https://www.perlmonks.org/?node_id=1164369 and probably more
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		ok !defined(fileno ARGV), 'ARGV closed initially';
 		ok !defined(fileno ARGVOUT), 'ARGVOUT closed initially';
 		push @states, [$ARGV, $., eof], eof();
-		#TODO: does/should eof() open ARGV for tied handles too?
-		#ok  defined(fileno ARGV), 'ARGV open'; # opened by eof()
-		#ok  defined(fileno ARGVOUT), 'ARGVOUT open'; # opened by eof()
+		ok  defined(fileno ARGV), 'ARGV open'; # opened by eof()
+		ok  defined(fileno ARGVOUT), 'ARGVOUT open'; # opened by eof()
 		while (<>) {
 			print "$ARGV:$.: ".uc;
 			ok  defined(fileno ARGV), 'ARGV still open';
@@ -86,42 +79,13 @@ subtest 'basic test' => sub {
 	], 'states' or diag explain \@states;
 };
 
-subtest 'inplace()' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("X\nY\nZ"), newtempfn("AA\nBB\nCC\n"));
-	my @files = @tf;
-	local @ARGV = ('foo','bar');
-	my @states;
-	{
-		my $inpl = inplace( files=>\@files );
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			print "$ARGV:$.: ".uc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is_deeply \@ARGV, ['foo','bar'], '@ARGV unaffected';
-	is @files, 0, '@files was emptied';
-	is slurp($tf[0]), "$tf[0]:1:X\n$tf[0]:2:Y\n$tf[0]:3:Z", 'file 1 contents';
-	is slurp($tf[1]), "$tf[1]:4:AA\n$tf[1]:5:BB\n$tf[1]:6:CC\n", 'file 2 contents';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[0], 1, !!0], !!0,
-		[$tf[0], 2, !!0], !!0,       [$tf[0], 3, !!1], !!0,
-		[$tf[1], 4, !!0], !!0,       [$tf[1], 5, !!0], !!0,
-		[$tf[1], 6, !!1], !!1,       [$tf[1], 6, !!1],
-	], 'states' or diag explain \@states;
-};
-
 subtest 'backup' => sub {
 	local (*ARGV, *ARGVOUT, $.);
 	my $tfn = newtempfn("Foo\nBar");
 	my $bfn = $tfn.'.bak';
 	{
 		ok !-e $bfn, 'backup file doesn\'t exist yet';
-		my $inpl = File::Replace::Inplace->new( files=>[$tfn], backup=>'.bak' );
+		local ($^I,@ARGV) = ('.bak',$tfn);
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		is eof, $FE, 'eof before';
 		is eof(), !!0, 'eof() before';
@@ -134,65 +98,14 @@ subtest 'backup' => sub {
 	is slurp($bfn), "Foo\nBar", 'backup file correct';
 };
 
-subtest 'cmdline' => sub {
-	my @tf = (newtempfn("One\nTwo\n"), newtempfn("Three\nFour"));
-	is perl('-MFile::Replace=-i','-pe','s/[aeiou]/_/gi', @tf), '', 'no output';
-	is slurp($tf[0]), "_n_\nTw_\n", 'file 1 correct';
-	is slurp($tf[1]), "Thr__\nF__r", 'file 2 correct';
-	my @bf = map { "$_.bak" } @tf;
-	ok !-e $bf[0], 'backup 1 doesn\'t exist';
-	ok !-e $bf[1], 'backup 2 doesn\'t exist';
-	is perl('-MFile::Replace=-i.bak','-nle','print "$ARGV:$.: $_"', @tf), '', 'no output (2)';
-	is slurp($tf[0]), "$tf[0]:1: _n_\n$tf[0]:2: Tw_\n", 'file 1 correct (2)';
-	is slurp($tf[1]), "$tf[1]:3: Thr__\n$tf[1]:4: F__r\n", 'file 2 correct (2)';
-	is slurp($bf[0]), "_n_\nTw_\n", 'backup file 1 correct';
-	is slurp($bf[1]), "Thr__\nF__r", 'backup file 2 correct';
-};
-
-subtest '-i in import list' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("XX\nYY\n"), newtempfn("ABC\nDEF\nGHI"));
-	local @ARGV = @tf;
-	ok !defined $File::Replace::GlobalInplace, 'GlobalInplace not set yet';
-	File::Replace->import('-i');
-	ok  defined $File::Replace::GlobalInplace, 'GlobalInplace is now set';
-	while (<>) {
-		print "$ARGV:$.:".lc;
-	}
-	is slurp($tf[0]), "$tf[0]:1:xx\n$tf[0]:2:yy\n", 'file 1 correct';
-	is slurp($tf[1]), "$tf[1]:3:abc\n$tf[1]:4:def\n$tf[1]:5:ghi", 'file 2 correct';
-	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
-	is @ARGV, 0, '@ARGV empty';
-	# a couple more checks for code coverage
-	File::Replace->import('-D');
-	is undef, $File::Replace::GlobalInplace, 'lone debug flag has no effect';  ## no critic (ProhibitPackageVars)
-	like exception {File::Replace->import('-i','-D','-i.bak')},
-		qr/\bmore than one -i\b/, 'multiple -i\'s fails';
-	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
-};
-
-subtest 'cleanup' => sub { # mostly just to make code coverage happy
-	my $tmpfile = newtempfn("Yay\nHooray");
-	{
-		my $inpl = inplace( files=>[$tmpfile] );
-		print "<$.>$_" while <>;
-		$inpl->cleanup;
-		tie *ARGV, 'Tie::Handle::Base'; # cleanup should only untie if tied to File::Replace::Inplace
-		$inpl->cleanup;
-		untie *ARGV;
-	}
-	is slurp($tmpfile), "<1>Yay\n<2>Hooray", 'file correct';
-};
-
 subtest 'readline contexts' => sub { # we test scalar everywhere, need to test the others too
 	local (*ARGV, *ARGVOUT, $.);
 	my @tf = (newtempfn("So"), newtempfn("Many\nTests\nis"), newtempfn("fun\n!!!"));
 	my @states;
 	{
-		my $inpl = inplace( files=>[@tf] );
+		local ($^I,@ARGV) = ('',@tf);
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
-		# at the moment, void context is handled the same as scalar, but test it anyway
 		for (1..2) {
 			push @states, [$ARGV, $., eof], eof();
 			<>;
@@ -220,7 +133,7 @@ subtest 'restart' => sub {
 	local @ARGV = ($tfn);
 	my @states;
 	{
-		my $inpl = File::Replace::Inplace->new();
+		local $^I = '';
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
 		while (<>) {
@@ -251,15 +164,16 @@ subtest 'reset $. on eof' => sub {
 	local @ARGV = @tf;
 	my @states;
 	{
-		my $inpl = File::Replace::Inplace->new();
+		local $^I = '';
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
-		#TODO: Can we use our overridden eof() here?
 		while (<>) {
 			print "($.)$_";
 			push @states, [$ARGV, $., eof];
 		}
 		# as documented in eof, this should reset $. per file
+		# apparently, this means we can't use eof() here because it tries to read STDIN,
+		# I haven't yet wrapped my head around why that is (TODO Later)
 		continue {
 			close ARGV if eof;
 			push @states, [$ARGV, $., eof];
@@ -300,7 +214,7 @@ subtest 'restart with emptied @ARGV' => sub {
 	my @states;
 	{
 		my $stdin = OverrideStdin->new("Hello\nWorld");
-		my $inpl = File::Replace::Inplace->new( files=>[@tf] );
+		local ($^I, @ARGV) = ('', @tf);
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
 		while (<>) {
@@ -332,7 +246,7 @@ subtest 'initially empty @ARGV' => sub {
 	my @states;
 	{
 		my $stdin = OverrideStdin->new("BlaH\nBlaHHH");
-		my $inpl = File::Replace::Inplace->new();
+		local $^I = '';
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
 		while (<>) {
@@ -351,9 +265,11 @@ subtest 'initially empty @ARGV' => sub {
 
 subtest 'nonexistent files' => sub {
 	my @tf;
+	use warnings NONFATAL => 'inplace';
+	local $SIG{__WARN__} = sub { $_[0]=~/\bCan't open (?:\Q$tf[0]\E|\Q$tf[1]\E): / or die @_ };
 	my %codes = (
 		scalar => sub {
-			my $inpl = File::Replace::Inplace->new( files=>[@tf] );
+			local ($^I,@ARGV) = ('',@tf);
 			is_deeply [$ARGV, $., eof], [undef, undef, $FE], 'state 1';
 			is eof(), !!0, 'eof() 1';
 			is <>, 'Hullo', 'read 1';
@@ -364,7 +280,7 @@ subtest 'nonexistent files' => sub {
 			is_deeply [$ARGV, $., eof], [$tf[2], 1, !!1], 'state 3';
 		},
 		list => sub {
-			my $inpl = File::Replace::Inplace->new( files=>[@tf] );
+			local ($^I,@ARGV) = ('',@tf);
 			is_deeply [$ARGV, $., eof], [undef, undef, $FE], 'state 1';
 			is eof(), !!0, 'eof() before';
 			is_deeply [<>], ["Hullo"], 'readline return correct';
@@ -382,11 +298,8 @@ subtest 'nonexistent files' => sub {
 			is select(), 'main::STDOUT', 'STDOUT is selected initially';
 			$codes{$k}->();
 			is select(), 'main::STDOUT', 'STDOUT is selected again';
-			# NOTE: difference to Perl's -i - File::Replace will create the files
-			ok -e $tf[0], 'file 1 now exists';
-			ok -e $tf[1], 'file 2 now exists';
-			is slurp($tf[0]), '', 'file 1 is empty';
-			is slurp($tf[1]), '', 'file 2 is empty';
+			ok !-e $tf[0], 'file 1 doesn\'t exist';
+			ok !-e $tf[1], 'file 2 doesn\'t exist';
 			is slurp($tf[2]), $k eq 'scalar' ? "World\n" : "", 'file 3 contents ok';
 		};
 	}
@@ -398,7 +311,9 @@ subtest 'empty files' => sub {
 	local @ARGV = @tf;
 	my @states;
 	{
-		my $inpl = File::Replace::Inplace->new();
+		use warnings NONFATAL => 'inplace';
+		local $SIG{__WARN__} = sub { $_[0]=~/\bCan't open \Q$tf[3]\E\b/ or die @_ };
+		local $^I = '';
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [$ARGV, $., eof], eof();
 		while (<>) {
@@ -422,49 +337,23 @@ subtest 'empty files' => sub {
 };
 
 subtest 'various file names' => sub {
+	plan skip_all => 'need Perl >=5.22 for double-diamond' if $] lt '5.022';
 	my $prevdir = getcwd;
 	my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
 	chdir($tmpdir) or die "chdir $tmpdir: $!";
-	spew("-","sttdddiiiinnnnn hello\nxyz\n");
+	#TODO: why doesn't this work? spew("-","sttdddiiiinnnnn hello\nxyz\n");
 	spew("echo|","piipppeee world\naa bb cc");
-	local @ARGV = ("-","echo|");
-	{
-		my $inpl = inplace();
-		while (<>) {
+	local @ARGV = ("echo|");
+	my $code = q{  # need to eval this because otherwise <<>> is a syntax error on older Perls
+		local $^I='';
+		while (<<>>) {
 			chomp;
 			print join(",", map {ucfirst} split), "\n";
 		}
-	}
-	is slurp("-"), "Sttdddiiiinnnnn,Hello\nXyz\n", 'file 1 correct';
+	; 1 };
+	eval $code or die $@||"unknown error";
+	#is slurp("-"), "Sttdddiiiinnnnn,Hello\nXyz\n", 'file 1 correct';
 	is slurp("echo|"), "Piipppeee,World\nAa,Bb,Cc\n", 'file 2 correct';
 	chdir($prevdir) or warn "chdir $prevdir: $!";
-};
-
-subtest 'debug' => sub {
-	note "Expect some debug output here:";
-	my $db = Test::More->builder->output;
-	ok( do { my $x=File::Replace::Inplace->new(debug=>$db); 1 }, 'debug w/ handle' );
-	local *STDERR = $db;
-	ok( do { my $x=File::Replace::Inplace->new(debug=>1); 1 }, 'debug w/o handle' );
-};
-
-subtest 'misc failures' => sub {
-	like exception { inplace(); 1 },
-		qr/\bUseless use of .*->new in void context\b/, 'inplace in void ctx';
-	like exception { my $x=inplace('foo') },
-		qr/\bnew: bad number of args\b/, 'bad nr of args 1';
-	like exception { File::Replace::Inplace::TiedArgv::TIEHANDLE() },
-		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 2';
-	like exception { File::Replace::Inplace::TiedArgv::TIEHANDLE('x','y') },
-		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 3';
-	like exception { my $x=inplace(badarg=>1) },
-		qr/\bunknown option\b/, 'unknown arg';
-	like exception { my $x=inplace(files=>"foo") },
-		qr/\bmust be an arrayref\b/, 'bad file arg';
-	like exception {
-			my $i = inplace();
-			open ARGV, '<', newtempfn or die $!;  ## no critic (ProhibitBarewordFileHandles)
-			close ARGV;
-		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
 };
 

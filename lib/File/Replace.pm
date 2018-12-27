@@ -34,7 +34,7 @@ BEGIN {
 our $VERSION = '0.09';
 
 our @EXPORT_OK = qw/ replace replace2 replace3 inplace /;
-our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle /;
+our @CARP_NOT = qw/ File::Replace::SingleHandle File::Replace::DualHandle File::Replace::Inplace /;
 
 our $GlobalInplace;  ## no critic (ProhibitPackageVars)
 sub import {
@@ -285,9 +285,10 @@ sub DESTROY {
 	return;
 }
 
-sub _debug {
+sub _debug {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
 	return 1 unless $self->{debug};
+	confess "not enough arguments to _debug" unless @_;
 	local ($",$,,$\) = (' ');
 	return print {$self->{debug}} @_;
 }

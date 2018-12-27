@@ -3,7 +3,6 @@ package Tie::Handle::Argv;
 use warnings;
 use strict;
 use Carp;
-use warnings::register;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
@@ -28,10 +27,10 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 
 sub _debug {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
-	return unless $self->{_debug};
+	return 1 unless $self->{_debug};
 	confess "not enough arguments to _debug" unless @_;
-	print {$self->{_debug}} ref($self), " DEBUG: ", @_ ,"\n";
-	return;
+	local ($",$,,$\) = (' ');
+	return print {$self->{_debug}} ref($self), " DEBUG: ", @_ ,"\n";
 }
 
 sub inner_close {
@@ -61,6 +60,7 @@ sub advance_argv {
 	$ARGV = shift @ARGV;  ## no critic (RequireLocalizedPunctuationVars)
 	return;
 }
+sub sequence_end {}
 sub _advance {
 	my $self = shift;
 	my $peek = shift;
@@ -76,6 +76,7 @@ sub _advance {
 		if (!@ARGV) {
 			$self->_debug("\@ARGV is now empty, closing and done (\$.=$.)");
 			$self->{_lineno} = undef unless $peek;
+			$self->sequence_end;
 			return;
 		} # else
 		$self->advance_argv;
@@ -252,6 +253,12 @@ Takes no arguments and should return nothing ("C<return;>").
 You may override this method to modify its behavior. Make sure you understand
 its arguments and expected behavior - see C<OPEN> in L<Tie::Handle::Base>
 and L<perltie>.
+
+=item C<sequence_end>
+
+Override this if you want to take action after the last file in C<@ARGV>
+has been closed.
+Takes no arguments and should return nothing ("C<return;>").
 
 =item Other methods: C<TIEHANDLE>, C<UNTIE>, C<DESTROY>
 
