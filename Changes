@@ -2,6 +2,7 @@ Revision history for Perl extension File::Replace.
 
 0.10	not yet released
 	- Added File::Replace::Inplace
+	- Added Tie::Handle::Argv
 	- Added "backup" option
 	- ...
 

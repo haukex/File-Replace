@@ -13,3 +13,4 @@ severity = 4
 
 [Modules::ProhibitExcessMainComplexity]
 severity = 2
+
