@@ -100,6 +100,20 @@ sub inner_write { # can be called as function or method
 	return undef;  ## no critic (ProhibitExplicitReturnUndef)
 }
 
+sub open_parse {
+	croak "not enough arguments to open_parse" unless @_;
+	my $fnwm = shift;
+	carp "too many arguments to open_parse" if @_>1;
+	return ($fnwm, shift) if @_;  # passthru
+	if ( $fnwm =~ s{^\s* ( \| | \+? (?: < | >>? ) (?:&=?)? ) | ( \| ) \s*$}{}x ) {
+		my ($x,$y) = ($1,$2);  $fnwm =~ s/^\s+|\s+$//g;
+		if ( defined $y )      { return ('-|', $fnwm) }
+		elsif ( $x eq '|' )    { return ('|-', $fnwm) }
+		else                   { return ($x,   $fnwm) }
+	} else
+		{ $fnwm=~s/^\s+|\s+$//g; return ('<',  $fnwm) }
+}
+
 1;
 __END__
 
@@ -234,6 +248,23 @@ handle.
 This implementation will first call the C<FILENO> method and check for
 C<defined>ness to see if the inner handle is still open, and if it is, call the
 C<CLOSE> method before calling Perl's C<open> to open the inner handle.
+
+=head3 C<open_parse>
+
+This is a simple utility method that tries to parse a two-argument C<open>
+and return arguments corresponding to a three-argument C<open>. It currently
+does I<not> do much validation, because it is assumed you will be implementing
+the code to act on the returned mode yourself.
+
+ sub OPEN {
+ 	my $self = shift;
+ 	croak "bad number of arguments to open" if @_<1||@_>2;
+ 	my ($mode,$filename) = Tie::Handle::Base::open_parse(@_);
+ 	...
+
+Note that if you pass C<open_parse> two arguments instead of just one, they
+will simply be passed through. An C<open> with no arguments or more than two
+arguments is not (yet) supported by this function.
 
 =head2 C<PRINT>, C<PRINTF>, and C<WRITE>
 
