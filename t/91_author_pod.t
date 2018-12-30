@@ -108,6 +108,20 @@ subtest 'verbatim code' => sub {
 		eval("use warnings; use strict; $$verb_fr[2]; 1") or fail($@);
 		is slurp($filename), "Z: Y: X: Foo\nZ: Y: X: Bar\nZ: Y: X: Quz\n", 'synposis 3';
 	}
+	
+	my $verb_av = getverbatim($PODFILES[2], qr/\b(?:synopsis)\b/i);
+	is @$verb_av, 2, 'Tie::Handle::Argv verbatim block count'
+		or diag explain $verb_av;
+	eval("use warnings; use strict; $$verb_av[0]; 1") or fail($@);
+	{
+		my $filename = newtempfn("Hello,\nWorld!");
+		is capture_merged {
+			local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
+			@ARGV = ($filename);  ## no critic (RequireLocalizedPunctuationVars)
+			eval("use warnings; use strict; $$verb_av[1]; 1") or fail($@);
+		}, "Debug: Open '$filename'\n<Hello,>\n<World!>\n", 'tied argv handle works 1';
+		is slurp($filename), "Hello,\nWorld!", 'tied argv handle works 2';
+	}
 	## use critic
 };
 
