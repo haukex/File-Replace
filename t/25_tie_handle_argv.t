@@ -42,6 +42,8 @@ our $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Pu
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
 
+diag "WARNING: Perl 5.16 or better is strongly recommended for Tie::Handle::Argv (see documentation)" if $] lt '5.016';
+
 BEGIN { use_ok('Tie::Handle::Argv') }
 
 ## no critic (RequireCarping)
@@ -87,7 +89,7 @@ testboth 'basic test' => sub { plan tests=>1;
 };
 
 testboth 'basic test with eof()' => sub {
-	plan $CE ? ( skip_all=>"eof() not supported on tied handles on Perl<5.12" ) : (tests=>1); #TODO: do we need to be this drastic?
+	plan $CE ? ( skip_all=>"eof() not supported on tied handles on Perl<5.12" ) : (tests=>1);
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	my @states;
 	local @ARGV = @tf;
@@ -227,8 +229,10 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-	#TODO Later: probably need to skip the following eof() test on Perls <5.12
-	ok !eof(), 'eof() is false';
+	SKIP: {
+		skip "eof() not supported on tied handles on Perl<5.12", 1 if $CE;
+		ok !eof(), 'eof() is false';
+	}
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -239,7 +243,8 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 		[[],       $tf[1], !!1, 3,     !!0, "Qz\n"   ],
 		[[],       $tf[1], !!1, 4,     !!1, "Bz\n"   ],
 		[[],       $tf[1], !!0, 4,     $BE?!!0:!!1   ],
-		[[],       '-',    !!1, 0,     !!0           ],
+		$CE ? [[], $tf[1], !!0, 4,     $BE?!!0:!!1   ]
+		    : [[], '-',    !!1, 0,     !!0           ],
 		[[],       '-',    !!1, 1,     !!0, "Hello\n"],
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
 		[[],       '-',    !!0, 2,     $BE?!!0:!!1   ],
@@ -329,8 +334,7 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
         ENDCODE
 		eval $code or die $@||"unknown error";  ## no critic (ProhibitStringyEval, ProhibitMixedBooleanOperators)
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-		TODO: { local $TODO; tied(*ARGV) and $TODO =  ## no critic (RequireInitializationForLocalVars)
-				"double-diamond not yet supported with tied filehandles (?)";
+		TODO: { local $TODO; tied(*ARGV) and $TODO = "double-diamond not yet supported with tied filehandles (?)";  ## no critic (RequireInitializationForLocalVars)
 			is_deeply \@states, [
 				[["<foo"], undef,  !!0, undef, $FE              ],
 				[[],       "<foo", !!1, 1,     !!0, "Special!\n"],
@@ -381,4 +385,10 @@ subtest 'misc errors' => sub { plan tests=>5;
 		qr/\btoo many arguments\b/, '_advance too many args';
 	untie *ARGV;
 };
+
+my @details = Test::More->builder->details;
+for my $i (0..$#details) {
+	diag "Passing TO"."DO Test #".($i+1).": ", explain($details[$i]{name})
+		if $details[$i]{type} eq 'to'.'do' && $details[$i]{actual_ok};
+}
 

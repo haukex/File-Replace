@@ -105,7 +105,7 @@ sub EOF {  ## no critic (RequireArgUnpacking)
 	# 1 if eof is given a filehandle as a parameter, e.g. eof(FH);
 	# and 2 in the very special case that the tied filehandle is ARGV
 	# and eof is called with an empty parameter list, e.g. eof()."
-	if (@_ && $_[0]==2) { #TODO: what about Perls <5.12 ?
+	if (@_ && $_[0]==2) {
 		while ( $self->EOF(1) ) {
 			$self->_debug("eof(): current file is at EOF, peeking");
 			if ( not $self->_advance("peek") ) {
@@ -147,6 +147,18 @@ Tie::Handle::Argv - A base class for tying ARGV
 =head1 Description
 
 TODO: Doc
+
+=head2 Warning About Perls Older Than v5.16
+
+Perl versions before 5.12 did not support C<eof()> (with an empty parameter
+list) on tied handles. See also L<perltie/Tying FileHandles>
+and L<perl5120delta/Other potentially incompatible changes>.
+
+Also, Perl 5.14 had several regressions regarding, among other things,
+C<eof> on tied handles. See L<perl5160delta/Filehandle, last-accessed>.
+
+It is therefore B<strongly recommended> to use this module on Perl 5.16
+and up. On older versions, be aware of the aforementioned issues.
 
 =head1 Author, Copyright, and License
 
