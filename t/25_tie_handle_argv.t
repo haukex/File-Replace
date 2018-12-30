@@ -323,12 +323,14 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 		my @states;
 		local @ARGV = ("<foo");
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-		my $code = q{  # need to eval this because otherwise <<>> is a syntax error on older Perls
+		my $code = <<'        ENDCODE';  # need to eval this because otherwise <<>> is a syntax error on older Perls
 			push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <<>>;
-		; 1 };
-		eval $code or die $@||"unknown error";
+		; 1
+        ENDCODE
+		eval $code or die $@||"unknown error";  ## no critic (ProhibitStringyEval, ProhibitMixedBooleanOperators)
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-		TODO: { local $TODO; tied(*ARGV) and $TODO = "double-diamond not yet supported with tied filehandles (?)";
+		TODO: { local $TODO; tied(*ARGV) and $TODO =  ## no critic (RequireInitializationForLocalVars)
+				"double-diamond not yet supported with tied filehandles (?)";
 			is_deeply \@states, [
 				[["<foo"], undef,  !!0, undef, $FE              ],
 				[[],       "<foo", !!1, 1,     !!0, "Special!\n"],
@@ -343,17 +345,17 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 subtest 'debugging (and coverage)' => sub { plan tests=>4;
 	local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
 	note "Expect some debug output here:";
-	@ARGV = (newtempfn("One\nTwo"));
+	@ARGV = (newtempfn("One\nTwo"));  ## no critic (RequireLocalizedPunctuationVars)
 	my $db = Test::More->builder->output;
 	tie *ARGV, 'Tie::Handle::Argv', debug=>$db;
 	is scalar <>, "One\n", 'debug w/ handle';
 	untie *ARGV;
-	@ARGV = (newtempfn("Three"));
+	@ARGV = (newtempfn("Three"));  ## no critic (RequireLocalizedPunctuationVars)
 	local *STDERR = $db;
 	tie *ARGV, 'Tie::Handle::Argv', debug=>1;
 	# for code coverage of the (unlikely) condition that eof was
 	# false but readline still returns undef:
-	open my $sfh, '<', \(my $somestr = "") or die $!;
+	open my $sfh, '<', \(my $somestr = "") or die $!;  ## no critic (RequireBriefOpen)
 	tied(*ARGV)->set_inner_handle(Tie::Handle::NeverEof->new($sfh));
 	ok !tied(*ARGV)->EOF(), 'eof is false';
 	is scalar <>, undef, 'debug w/o handle';

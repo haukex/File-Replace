@@ -14,7 +14,7 @@ our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
 
 my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ debug /;
 
-sub TIEHANDLE {
+sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak $class."::tie/new: bad number of arguments" if @_%2;
 	my %args = @_;
@@ -26,7 +26,7 @@ sub TIEHANDLE {
 	return $self;
 }
 
-sub _debug {
+sub _debug {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
 	return unless $self->{_debug};
 	confess "not enough arguments to _debug" unless @_;
@@ -40,9 +40,9 @@ sub _close {
 	my $keep_lineno = shift;
 	my $rv = $self->SUPER::CLOSE(@_);
 	if ($keep_lineno)
-		{ $. = $self->{_lineno} }
+		{ $. = $self->{_lineno} }  ## no critic (RequireLocalizedPunctuationVars)
 	else
-		{ $. = $self->{_lineno} = 0 }
+		{ $. = $self->{_lineno} = 0 }  ## no critic (RequireLocalizedPunctuationVars)
 	return $rv; # see tests in 20_tie_handle_base.t: we know close always returns a scalar
 }
 sub CLOSE { return shift->_close(0) }
@@ -55,16 +55,16 @@ sub _advance {
 		$self->_debug("\@ARGV is empty, adding '-' (\$.=0)");
 		unshift @ARGV, '-';
 		# the normal ARGV also appears to behave like this:
-		$. = 0;
+		$. = 0;  ## no critic (RequireLocalizedPunctuationVars)
 	}
 	FILE: {
-		$self->_close(1) unless !defined($self->{_lineno});
+		$self->_close(1) if defined $self->{_lineno};
 		if (!@ARGV) {
 			$self->_debug("\@ARGV is now empty, closing and done (\$.=$.)");
 			$self->{_lineno} = undef unless $peek;
 			return;
 		} # else
-		$ARGV = shift @ARGV;
+		$ARGV = shift @ARGV;  ## no critic (RequireLocalizedPunctuationVars)
 		$self->_debug("opening '$ARGV'");
 		# note: ->SUPER::OPEN uses ->CLOSE, but we don't want that, so we ->_close above
 		if ( $self->OPEN($ARGV) ) {
@@ -91,14 +91,14 @@ sub READLINE {
 		my $line = $self->SUPER::READLINE(@_);
 		last unless defined $line;
 		push @out, $line;
-		$. = ++$self->{_lineno};
+		$. = ++$self->{_lineno};  ## no critic (RequireLocalizedPunctuationVars)
 		last unless wantarray;
 	}
 	$self->_debug("readline: ",0+@out," lines (\$.=$.)");
 	return wantarray ? @out : $out[0];
 }
 
-sub EOF {
+sub EOF {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
 	# "Starting with Perl 5.12, an additional integer parameter will be passed.
 	# It will be zero if eof is called without parameter;
