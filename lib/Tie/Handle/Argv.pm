@@ -39,15 +39,6 @@ sub _close {
 	confess "bad number of arguments to _close" unless @_==1;
 	my $keep_lineno = shift;
 	my $rv = $self->SUPER::CLOSE(@_);
-	#TODO: the following was an experiment to see if I can fix the STDIN tests
-	# I thought maybe I shouldn't close STDIN, or maybe it's a problem with OverrideStdin
-	#my $fn = $self->FILENO;
-	#my $rv;
-	#if ( defined($fn) && $fn==0 ) {
-	#	$self->set_inner_handle(\do{local*HANDLE;*HANDLE});
-	#	$rv = !!1;
-	#}
-	#else { $rv = $self->SUPER::CLOSE(@_) }
 	if ($keep_lineno)
 		{ $. = $self->{_lineno} }
 	else

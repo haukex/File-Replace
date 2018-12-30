@@ -48,18 +48,22 @@ BEGIN { use_ok('Tie::Handle::Argv') }
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles
 sub testboth {  ## no critic (RequireArgUnpacking)
 	# test that both regular ARGV and our tied base class act the same
-	die "bad nr of args" unless @_==2;
-	my ($name, $sub) = @_;
+	die "bad nr of args" unless @_==2 || @_==3;
+	my ($name, $sub, $stdin) = @_;
 	{
 		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
+		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - untied" => $sub;
+		$osi and $osi->restore;
 	}
 	{
 		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
 		local $CE;  ## no critic (RequireInitializationForLocalVars)
 		$CE = 1 if $] lt '5.012';
 		tie *ARGV, 'Tie::Handle::Argv', debug=>$DEBUG;
+		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - tied" => $sub;
+		$osi and $osi->restore;
 		untie *ARGV;
 	}
 	return;
@@ -197,22 +201,20 @@ testboth 'close on eof to reset $.' => sub { plan tests=>1;
 
 =begin comment
 
-#TODO: I can't run both STDIN tests in one file, not sure why yet (see Tie::Handle::Argv::_close)
+#TODO Later: I can't run both STDIN tests in one file, not sure why yet
 
 testboth 'initially empty @ARGV' => sub { plan tests=>1;
 	my @states;
-	my $stdin = OverrideStdin->new("BlaH\nBlaHHH");
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-	$stdin->restore;
 	is_deeply \@states, [
 		[[], undef, !!0, undef, $FE          ],
 		[[], '-',   !!1, 1,     !!0, "BlaH\n"],
 		[[], '-',   !!1, 2,     !!1, "BlaHHH"],
 		[[], '-',   !!0, 2,     !!1          ],
 	], 'states' or diag explain \@states;
-};
+}, "BlaH\nBlaHHH";
 
 =end comment
 
@@ -222,7 +224,6 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
 	local @ARGV = @tf;
-	my $stdin = OverrideStdin->new("Hello\nWorld");
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -231,7 +232,6 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-	$stdin->restore;
 	is_deeply \@states, [
 		[[@tf],    undef,  !!0, undef, $FE           ],
 		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Fo\n"   ],
@@ -244,7 +244,7 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
 		[[],       '-',    !!0, 2,     !!1           ],
 	], 'states' or diag explain \@states;
-};
+}, "Hello\nWorld";
 
 testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	my @tf = (newtempfn(""), newtempfn("Hullo"), newtempfn, newtempfn(""), newtempfn, newtempfn("World!\nFoo!"), newtempfn(""));
