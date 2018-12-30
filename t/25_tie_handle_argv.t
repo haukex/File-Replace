@@ -31,21 +31,21 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More ;#TODO: tests=>1;
+use Test::More tests=>20;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
-use Carp::Always; #TODO: debug, remove
 
-my $DEBUG = 0;
 use warnings FATAL => qw/ io inplace /;
-my $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+our $DEBUG = 0;
+our $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
+our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
 
 BEGIN { use_ok('Tie::Handle::Argv') }
 
 ## no critic (RequireCarping)
 
-our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles
 sub testboth {  ## no critic (RequireArgUnpacking)
 	# test that both regular ARGV and our tied base class act the same
 	die "bad nr of args" unless @_==2 || @_==3;
@@ -58,8 +58,8 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 	}
 	{
 		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
-		local $CE;  ## no critic (RequireInitializationForLocalVars)
-		$CE = 1 if $] lt '5.012';
+		local $CE = $] lt '5.012';
+		local $BE = $] ge '5.014' && $] lt '5.016';
 		tie *ARGV, 'Tie::Handle::Argv', debug=>$DEBUG;
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - tied" => $sub;
@@ -82,7 +82,7 @@ testboth 'basic test' => sub { plan tests=>1;
 		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Bar\n"],
 		[[],       $tf[1], !!1, 3,     !!0, "Quz\n"],
 		[[],       $tf[1], !!1, 4,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, 4,     !!1         ],
+		[[],       $tf[1], !!0, 4,     $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -101,13 +101,13 @@ testboth 'basic test with eof()' => sub {
 	# another call to eof() now would open and try to read STDIN (we test that in the STDIN tests)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, $FE         ], !!0,
-		[[$tf[1]], $tf[0], !!1, 0,     !!0         ], !!0,
-		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Foo\n"], !!0,
-		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Bar"  ], !!0,
-		[[],       $tf[1], !!1, 3,     !!0, "Quz\n"], !!0,
-		[[],       $tf[1], !!1, 4,     !!1, "Baz\n"], !!1,
-		[[],       $tf[1], !!0, 4,     !!1         ],
+		[[@tf],    undef,  !!0, undef,       $FE         ], !!0,
+		[[$tf[1]], $tf[0], !!1, $BE?undef:0, !!0         ], !!0,
+		[[$tf[1]], $tf[0], !!1, 1,           !!0, "Foo\n"], !!0,
+		[[$tf[1]], $tf[0], !!1, 2,           !!1, "Bar"  ], !!0,
+		[[],       $tf[1], !!1, 3,           !!0, "Quz\n"], !!0,
+		[[],       $tf[1], !!1, 4,           !!1, "Baz\n"], !!1,
+		[[],       $tf[1], !!0, 4,           $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -126,10 +126,10 @@ testboth 'readline contexts' => sub { plan tests=>2;
 	is_deeply \@got, ["Charlie\n","Delta","Echo\n","!!!"], 'list ctx'
 		or diag explain \@got;
 	is_deeply \@states, [
-		[[@tf],      undef,  !!0, undef, $FE],
-		[[@tf[1,2]], $tf[0], !!1, 1,     !!1],
-		[[$tf[2]],   $tf[1], !!1, 2,     !!0],
-		[[],         $tf[2], !!0, 6,     !!1],
+		[[@tf],      undef,  !!0, undef, $FE        ],
+		[[@tf[1,2]], $tf[0], !!1, 1,     !!1        ],
+		[[$tf[2]],   $tf[1], !!1, 2,     !!0        ],
+		[[],         $tf[2], !!0, 6,     $BE?!!0:!!1],
 	], 'states' or diag explain \@states;
 };
 
@@ -149,12 +149,12 @@ testboth 'restart argv' => sub { plan tests=>1;
 		[[],     $tfn,  !!1, 1,     !!0, "111\n"],
 		[[],     $tfn,  !!1, 2,     !!0, "222\n"],
 		[[],     $tfn,  !!1, 3,     !!1, "333\n"],
-		[[],     $tfn,  !!0, 3,     !!1         ],
-		[[$tfn], $tfn,  !!0, 3,     !!1         ],
+		[[],     $tfn,  !!0, 3,     $BE?!!0:!!1 ],
+		[[$tfn], $tfn,  !!0, 3,     $BE?!!0:!!1 ],
 		[[],     $tfn,  !!1, 1,     !!0, "111\n"],
 		[[],     $tfn,  !!1, 2,     !!0, "222\n"],
 		[[],     $tfn,  !!1, 3,     !!1, "333\n"],
-		[[],     $tfn,  !!0, 3,     !!1         ],
+		[[],     $tfn,  !!0, 3,     $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -238,11 +238,11 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Br"     ],
 		[[],       $tf[1], !!1, 3,     !!0, "Qz\n"   ],
 		[[],       $tf[1], !!1, 4,     !!1, "Bz\n"   ],
-		[[],       $tf[1], !!0, 4,     !!1           ],
+		[[],       $tf[1], !!0, 4,     $BE?!!0:!!1   ],
 		[[],       '-',    !!1, 0,     !!0           ],
 		[[],       '-',    !!1, 1,     !!0, "Hello\n"],
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
-		[[],       '-',    !!0, 2,     !!1           ],
+		[[],       '-',    !!0, 2,     $BE?!!0:!!1   ],
 	], 'states' or diag explain \@states;
 }, "Hello\nWorld";
 
@@ -270,9 +270,9 @@ testboth 'nonexistent and empty files' => sub { plan tests=>7;
 		[[@tf[2..6]], $tf[1], !!1, 1,     !!1, "Hullo"   ],
 		[[$tf[6]],    $tf[5], !!1, 2,     !!0, "World!\n"],
 		[[$tf[6]],    $tf[5], !!1, 3,     !!1, "Foo!"    ],
-		[[],          $tf[6], !!0, 3,     !!1            ],
-		[[@tf],       $tf[6], !!0, 3,     !!1            ],
-		[[],          $tf[6], !!0, 3,     !!1            ],
+		[[],          $tf[6], !!0, 3,     $BE?!!0:!!1    ],
+		[[@tf],       $tf[6], !!0, 3,     $BE?!!0:!!1    ],
+		[[],          $tf[6], !!0, 3,     $BE?!!0:!!1    ],
 	], 'states' or diag explain \@states;
 	is $warncount, 4, 'warning count';
 };
@@ -294,7 +294,7 @@ testboth 'premature close' => sub { plan tests=>1;
 		[[$tf[1]], $tf[0], !!0, 0,     !!1         ],
 		[[],       $tf[1], !!1, 1,     !!0, "Quz\n"],
 		[[],       $tf[1], !!1, 2,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, 2,     !!1         ],
+		[[],       $tf[1], !!0, 2,     $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -315,7 +315,7 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 			[["<foo"], undef,  !!0, undef, $FE           ],
 			[[],       "<foo", !!1, 1,     !!0, "not\n"  ],
 			[[],       "<foo", !!1, 2,     !!1, "special"],
-			[[],       "<foo", !!0, 2,     !!1           ],
+			[[],       "<foo", !!0, 2,     $BE?!!0:!!1   ],
 		], 'states' or diag explain \@states;
 	};
 	testboth 'double-diamond' => sub {
@@ -382,4 +382,3 @@ subtest 'misc errors' => sub { plan tests=>5;
 	untie *ARGV;
 };
 
-done_testing;
