@@ -19,6 +19,10 @@ WriteMakefile(
 				file    => 'lib/Tie/Handle/Base.pm',
 				version => '0.09',
 			},
+			'Tie::Handle::Argv' => {
+				file    => 'lib/Tie/Handle/Argv.pm',
+				version => '0.09',
+			},
 		},
 		no_index     => {
 			file      => [
