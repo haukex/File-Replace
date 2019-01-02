@@ -14,15 +14,16 @@ sub new {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak "Useless use of $class->new in void context" unless defined wantarray;
 	croak "$class->new: bad number of args" if @_%2;
-	my %args = @_; # just so we can extract the debug option
-	my $self = {};
-	$self->{debug} = \*STDERR if $args{debug} && !ref($args{debug});
+	my %args = @_; # really just so we can inspect the debug option
+	my $self = {
+		debug => ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef),
+	};
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
 	bless $self, $class;
 	$self->_debug("$class->new: tied ARGV\n");
 	return $self;
 }
-*_debug = \&File::Replace::_debug;
+*_debug = \&File::Replace::_debug;  ## no critic (ProtectPrivateVars)
 sub cleanup {
 	my $self = shift;
 	if ( defined( my $tied = tied(*ARGV) ) ) {
@@ -30,7 +31,7 @@ sub cleanup {
 			$self->_debug(ref($self)."->cleanup: untieing ARGV\n");
 			untie *ARGV;
 		}
-	;}
+	}
 	delete $self->{debug};
 	return 1;
 }
@@ -56,7 +57,7 @@ sub DESTROY { return shift->cleanup }
 	sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 		croak __PACKAGE__."->TIEHANDLE: bad number of args" unless @_ && @_%2;
 		my ($class,%args) = @_;
-		for (keys %args) { croak "$class->new: unknown option '$_'"
+		for (keys %args) { croak "$class->tie/new: unknown option '$_'"
 			unless $TIEHANDLE_KNOWN_OPTS{$_} }
 		my $self = $class->SUPER::TIEHANDLE( debug => $args{debug} );
 		$self->{repl_opts} = \%args;
@@ -65,23 +66,20 @@ sub DESTROY { return shift->cleanup }
 	
 	sub OPEN {
 		my $self = shift;
-		croak "bad number of arguments to open" if @_<1||@_>2;
-		my ($mode,$filename) = Tie::Handle::Base::open_parse(@_);
-		$mode =~ /^\s*<\s*(:\w.*)?$/ or croak "unuspported mode '$mode'";
-		my %opts;
-		$opts{layers} = $1 if $1;
+		croak "bad number of arguments to open" unless @_==1;
+		my $filename = shift;
 		if ($filename eq '-') {
 			$self->_debug(ref($self).": Reading from STDIN, writing to STDOUT");
-			$self->set_inner_handle(*STDIN);
-			binmode STDIN, $opts{layers} if $opts{layers};
-			*ARGVOUT = *STDOUT{IO};  ## no critic (RequireLocalizedPunctuationVars)
+			$self->set_inner_handle(*STDIN{IO});
+			select(STDOUT);  ## no critic (ProhibitOneArgSelect)
 		}
 		else {
-			$self->{repl} = File::Replace->new($filename, %{$self->{repl_opts}}, %opts );
+			$self->{repl} = File::Replace->new($filename, %{$self->{repl_opts}} );
 			$self->set_inner_handle($self->{repl}->in_fh);
 			*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
+			select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
 		}
-		select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
+		return 1;
 	}
 	
 	sub inner_close {
@@ -95,19 +93,22 @@ sub DESTROY { return shift->cleanup }
 	
 	sub sequence_end {
 		my $self = shift;
+		$self->set_inner_handle(\do{local*HANDLE;*HANDLE})  ## no critic (RequireInitializationForLocalVars)
+			if $self->innerhandle==*STDIN{IO};
 		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
+		return;
 	}
 	
 	sub UNTIE {
 		my $self = shift;
-		delete $self->{$_} for grep {!/^_/} keys %$self;
+		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
 		return $self->SUPER::UNTIE(@_);
 	}
 	
 	sub DESTROY {
 		my $self = shift;
 		# File::Replace destructor will warn on unclosed file
-		delete $self->{$_} for grep {!/^_/} keys %$self;
+		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
 		return $self->SUPER::DESTROY(@_);
 	}
 	
@@ -137,17 +138,6 @@ B<This is a development version.>
 
 =item *
 
-Files are always opened with the three-argument C<open>, meaning that things
-like piped C<open>s won't work. In that way, this module works more like
-Perl's newer double-diamond C<<< <<>> >>> operator. This means, for example,
-that if C<@ARGV> contains C<"<foo">, then instead of C<STDIN>, a file literally
-named F<< <foo >> will be opened, instead of a file F<foo>.
-
-=for comment
-TODO: test the above statement
-
-=item *
-
 Problems like not being able to open a file would normally only cause a warning
 when using Perl's C<-i> option, in this module it depends on the setting of
 the C<create> option, see L<File::Replace/create>.
@@ -157,7 +147,27 @@ the C<create> option, see L<File::Replace/create>.
 See the documentation of the C<backup> option at L<File::Replace/backup>
 for differences to Perl's C<-i>.
 
+=item *
+
+If you use the C<close ARGV if eof;> idiom to reset C<$.>, as documented in
+L<perlfunc/eof>, then be aware that the C<close ARGV> has the effect of
+calling C<finish> on the underlying L<File::Replace|File::Replace> object,
+which has the effect of closing the current output handle as well.
+(With Perl's C<-i> switch, it is possible to continue writing to the output
+file even after the C<close ARGV>. The equivalent to what this module does
+would be C<if (eof) { close ARGV; close select; }>.)
+
 =back
+
+=head2 Warning About Perls Older Than v5.16
+
+Please see L<Tie::Handle::Argv/Warning About Perls Older Than v5.16>.
+In addition, there is a known issue that C<eof> may return unexpected
+values on Perls older than 5.12 when reading from C<STDIN> via a
+tied C<ARGV>.
+
+It is B<strongly recommended> to use this module on Perl 5.16 and up.
+On older versions, be aware of the aforementioned issues.
 
 =head1 Author, Copyright, and License
 

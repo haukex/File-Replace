@@ -38,7 +38,8 @@ use File::Temp qw/tempdir/;
 
 use warnings FATAL => qw/ io inplace /;
 our $DEBUG = 0;
-our $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+our $FE = $] ge '5.012' && $] lt '5.030' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+#TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
 
@@ -123,7 +124,7 @@ testboth 'readline contexts' => sub { plan tests=>2;
 		<>; # void ctx
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	}
-	my @got = <>;
+	my @got = <>; # list ctx
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@got, ["Charlie\n","Delta","Echo\n","!!!"], 'list ctx'
 		or diag explain \@got;
@@ -204,6 +205,7 @@ testboth 'close on eof to reset $.' => sub { plan tests=>1;
 =begin comment
 
 #TODO Later: I can't run both STDIN tests in one file, not sure why yet
+# Once this is working, copy this test to the File::Replace::Inplace tests as well
 
 testboth 'initially empty @ARGV' => sub { plan tests=>1;
 	my @states;
@@ -253,7 +255,7 @@ testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
 
 testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	my @tf = (newtempfn(""), newtempfn("Hullo"), newtempfn, newtempfn(""), newtempfn, newtempfn("World!\nFoo!"), newtempfn(""));
-	ok !-e $tf[$_], "file $_ doesn't exist" for 2,4;
+	ok !-e $tf[$_], "file ".($_+1)." doesn't exist" for 2,4;
 	my @states;
 	local @ARGV = @tf;
 	use warnings NONFATAL => 'inplace';
@@ -269,7 +271,7 @@ testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply [<>], ["Hullo","World!\n","Foo!"], '<> in list ctx';
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-	ok !-e $tf[$_], "file $_ doesn't exist" for 2,4;
+	ok !-e $tf[$_], "file ".($_+1)." doesn't exist" for 2,4;
 	is_deeply \@states, [
 		[[@tf],       undef,  !!0, undef, $FE            ],
 		[[@tf[2..6]], $tf[1], !!1, 1,     !!1, "Hullo"   ],
@@ -308,8 +310,8 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 	my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
 	chdir($tmpdir) or die "chdir $tmpdir: $!";
 	# this should also apply to piped opens etc.
-	spew("foo","not\nspecial");
-	spew("<foo","Special!\nFilename!");
+	spew("foo","I am foo\nbar");
+	spew("<foo","I am <foo!\nquz");
 	testboth 'diamond' => sub { plan tests=>1;
 		my @states;
 		local @ARGV = ("<foo");
@@ -317,10 +319,10 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 		is_deeply \@states, [
-			[["<foo"], undef,  !!0, undef, $FE           ],
-			[[],       "<foo", !!1, 1,     !!0, "not\n"  ],
-			[[],       "<foo", !!1, 2,     !!1, "special"],
-			[[],       "<foo", !!0, 2,     $BE?!!0:!!1   ],
+			[["<foo"], undef,  !!0, undef, $FE              ],
+			[[],       "<foo", !!1, 1,     !!0, "I am foo\n"],
+			[[],       "<foo", !!1, 2,     !!1, "bar"       ],
+			[[],       "<foo", !!0, 2,     $BE?!!0:!!1      ],
 		], 'states' or diag explain \@states;
 	};
 	testboth 'double-diamond' => sub {
@@ -336,10 +338,10 @@ subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 		TODO: { local $TODO; tied(*ARGV) and $TODO = "double-diamond not yet supported with tied filehandles (?)";  ## no critic (RequireInitializationForLocalVars)
 			is_deeply \@states, [
-				[["<foo"], undef,  !!0, undef, $FE              ],
-				[[],       "<foo", !!1, 1,     !!0, "Special!\n"],
-				[[],       "<foo", !!1, 2,     !!1, "Filename!" ],
-				[[],       "<foo", !!0, 2,     !!1              ],
+				[["<foo"], undef,  !!0, undef, $FE                ],
+				[[],       "<foo", !!1, 1,     !!0, "I am <foo!\n"],
+				[[],       "<foo", !!1, 2,     !!1, "quz"         ],
+				[[],       "<foo", !!0, 2,     !!1                ],
 			], 'states for double-diamond';
 		}
 	};

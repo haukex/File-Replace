@@ -17,8 +17,8 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak $class."::tie/new: bad number of arguments" if @_%2;
 	my %args = @_;
-	$TIEHANDLE_KNOWN_ARGS{$_} or croak $class."::tie/new: unknown argument '$_'"
-		for keys %args;
+	for (keys %args) { croak "$class->tie/new: unknown argument '$_'"
+		unless $TIEHANDLE_KNOWN_ARGS{$_} }
 	my $self = $class->SUPER::TIEHANDLE();
 	$self->{_lineno} = undef; # also keeps state: undef = not currently active, defined = active
 	$self->{_debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
@@ -159,7 +159,7 @@ __END__
 
 =head1 Name
 
-Tie::Handle::Argv - A base class for tying ARGV
+Tie::Handle::Argv - A base class for tying Perl's magic ARGV handle
 
 =head1 Synopsis
 
@@ -295,6 +295,35 @@ C<eof> on tied handles. See L<perl5160delta/Filehandle, last-accessed>.
 
 It is therefore B<strongly recommended> to use this module on Perl 5.16
 and up. On older versions, be aware of the aforementioned issues.
+
+=head2 Caveats and Known Differences to Perl's C<< <> >>
+
+=over
+
+=item *
+
+Perl's C<tie> mechanism currently does not allow a tied C<ARGV> to
+distinguish between a regular C<< <> >> operator and the newer double-diamond
+C<<< <<>> >>> operator (introduced in Perl 5.22), which uses the three-argument
+C<open>. When using this module, C<<< <<>> >>> will currently act the same
+as C<< <> >>.
+
+If a newer version of Perl is released which allows for tied filehandles
+to make use of C<<< <<>> >>>, this module can be updated correspondingly.
+(At the time of writing, all released versions of Perl, up to and including
+5.28, do not support special treatment of C<<< <<>> >>> on tied filehandles.)
+
+Note: On the other hand, this class can be used to change C<< <> >> to
+work like C<<< <<>> >>> even on older Perls, for instance:
+
+ package Tie::Handle::ThreeArgOpenArgv;
+ use parent 'Tie::Handle::Argv';
+ sub OPEN {
+     my $self = shift;
+     return $self->SUPER::OPEN('<',@_);
+ }
+
+=back
 
 =head2 Debugging
 

@@ -27,15 +27,19 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 =cut
 
+use Test::More tests=>11; # remember to keep in sync with done_testing
+
+BEGIN {
+	diag "This is Perl $] at $^X on $^O";
+	BAIL_OUT("Perl 5.8.1 is required") if $] lt '5.008001';
+}
+
 use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>11; # remember to keep in sync with done_testing
-
 ## no critic (RequireCarping)
 
-BEGIN { diag "This is Perl $] at $^X on $^O" }
 BEGIN {
 	use_ok('Tie::Handle::Base')
 		or BAIL_OUT("failed to use Tie::Handle::Base");

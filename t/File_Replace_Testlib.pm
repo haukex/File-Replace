@@ -174,32 +174,6 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	}
 }
 {
-	package Tie::Handle::MockStdin; #TODO: remove when no longer used
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub TIEHANDLE {
-		my ($class, @lines) = @_;
-		my $self = $class->SUPER::TIEHANDLE();
-		$self->{lines} = \@lines;
-		$self->{lineno} = 0;
-		return $self;
-	}
-	sub READLINE {
-		my $self = shift;
-		if (wantarray) {
-			my @o = @{$self->{lines}};
-			@{$self->{lines}} = ();
-			$. = ($self->{lineno} + @o);  ## no critic (RequireLocalizedPunctuationVars)
-			return @o;
-		} # else
-		$. = ++$self->{lineno};  ## no critic (RequireLocalizedPunctuationVars)
-		return shift @{$self->{lines}};
-	}
-	sub EOF {
-		return !@{shift->{lines}}
-	}
-}
-{
 	package Tie::Handle::NeverEof;
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)

@@ -17,7 +17,6 @@ t/20_tie_handle_base.t
 t/30_singlehandle.t
 t/40_dualhandle.t
 t/50_inplace.t
-t/51_perl_i.t
 t/90_author_critic.t
 t/91_author_pod.t
 t/File_Replace_Testlib.pm

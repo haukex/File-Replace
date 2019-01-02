@@ -43,7 +43,7 @@ sub import {
 		{ unshift @mine, splice @_, $i, 1 if $_[$i]=~/^-i|^-D$/ }
 	if ( @mine and my @i = grep {/^-i/} @mine ) {
 		croak "$_[0]: can't specify more than one -i switch" if @i>1;
-		# the following double-check is currently just paranoia, so:
+		# the following double-check is currently just paranoia, so ignore it in code coverage:
 		# uncoverable branch true
 		my ($ext) = $i[0]=~/^-i(.*)$/ or croak "failed to parse '$i[0]'";
 		my $debug = grep {/^-D$/} @mine;

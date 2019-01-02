@@ -6,6 +6,8 @@ use strict;
 
 Tests for the Perl module File::Replace::Inplace.
 
+These tests are based heavily on F<t/25_tie_handle_argv.t>.
+
 =head1 Author, Copyright, and License
 
 Copyright (c) 2018 Hauke Daempfling (haukex@zero-g.net)
@@ -31,19 +33,23 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>18;
+use Test::More tests=>30;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
+
 use File::Spec::Functions qw/catdir catfile/;
 use IPC::Run3::Shell 0.56 ':FATAL', [ perl => { fail_on_stderr=>1,
 	show_cmd=>Test::More->builder->output },
 	$^X, '-wMstrict', '-I'.catdir($FindBin::Bin,'..','lib') ];
 
-# Note: At the very first call to "eof", the "most recent filehandle" won't be ARGV.
-my $FE = $] lt '5.012' ? !!1 : !!0; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+use warnings FATAL => qw/ io inplace /;
+our $DEBUG = 0;
+our $FE = $] ge '5.012' && $] lt '5.030' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
 
-## no critic (RequireCarping)
+diag "WARNING: Perl 5.16 or better is strongly recommended for File::Replace::Inplace\n\t"
+	."(see documentation of Tie::Handle::Argv for details)" if $] lt '5.016';
 
 BEGIN {
 	use_ok 'File::Replace::Inplace';
@@ -51,90 +57,425 @@ BEGIN {
 }
 use warnings FATAL => 'File::Replace';
 
-subtest 'basic test' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
-	local @ARGV = @tf;
-	my @states;
+## no critic (RequireCarping)
+
+our $TESTMODE;
+sub testboth {  ## no critic (RequireArgUnpacking)
+	# test that both regular $^I and our tied class act the same
+	die "bad nr of args" unless @_==2 || @_==3;
+	my ($name, $sub, $args) = @_;
+	my $stdin = delete $$args{stdin};
 	{
-		my $inpl = File::Replace::Inplace->new();
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		ok !defined(fileno ARGV), 'ARGV closed initially';
-		ok !defined(fileno ARGVOUT), 'ARGVOUT closed initially';
-		push @states, [$ARGV, $., eof], eof();
-		#TODO: does/should eof() open ARGV for tied handles too?
-		#ok  defined(fileno ARGV), 'ARGV open'; # opened by eof()
-		#ok  defined(fileno ARGVOUT), 'ARGVOUT open'; # opened by eof()
-		while (<>) {
-			print "$ARGV:$.: ".uc;
-			ok  defined(fileno ARGV), 'ARGV still open';
-			ok  defined(fileno ARGVOUT), 'ARGVOUT still open';
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		ok !defined(fileno ARGV), 'ARGV closed again';
-		ok !defined(fileno ARGVOUT), 'ARGVOUT closed again';
-		push @states, [$ARGV, $., eof]; # another call to eof() would open and try to read STDIN
+		local $TESTMODE = 'Perl';
+		local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
+		$^I = $$args{backup}||'';  ## no critic (RequireLocalizedPunctuationVars)
+		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
+		subtest "$name - Perl" => $sub;
+		$osi and $osi->restore;
 	}
-	is @ARGV, 0, '@ARGV empty';
+	{
+		local $TESTMODE = 'Inplace';
+		local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
+		local $CE = $] lt '5.012';
+		my $inpl = File::Replace::Inplace->new(%$args);
+		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
+		subtest "$name - ::Inplace" => $sub;
+		$osi and $osi->restore;
+	}
+	return;
+}
+
+testboth 'basic test' => sub { plan tests=>9;
+	my @tf = (newtempfn("Foo\nBar\n"), newtempfn("Quz\nBaz"));
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	my @states;
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV:$.: ".uc;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tf[0]), "$tf[0]:1: FOO\n$tf[0]:2: BAR\n", 'file 1 contents';
+	is slurp($tf[1]), "$tf[1]:3: QUZ\n$tf[1]:4: BAZ", 'file 2 contents';
+	is_deeply \@states, [
+		[[@tf],    undef,  !!0, !!0, undef, $FE         ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Foo\n"],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Bar\n"],
+		[[],       $tf[1], !!1, !!1, 3,     !!0, "Quz\n"],
+		[[],       $tf[1], !!1, !!1, 4,     !!1, "Baz"  ],
+		[[],       $tf[1], !!0, !!0, 4,     !!1         ],
+	], 'states' or diag explain \@states;
+};
+
+testboth 'basic test with eof()' => sub {
+	plan $CE ? ( skip_all=>"eof() not supported on tied handles on Perl<5.12" ) : (tests=>9);
+	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	my @states;
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof], eof();
+	# eof() will open the first file, so record the current state again:
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof], eof();
+	while (<>) {
+		print "$ARGV:$.: ".uc;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_], eof();
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
 	is slurp($tf[0]), "$tf[0]:1: FOO\n$tf[0]:2: BAR", 'file 1 contents';
 	is slurp($tf[1]), "$tf[1]:3: QUZ\n$tf[1]:4: BAZ\n", 'file 2 contents';
 	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[0], 1, !!0], !!0,
-		[$tf[0], 2, !!1], !!0,       [$tf[1], 3, !!0], !!0,
-		[$tf[1], 4, !!1], !!1,       [$tf[1], 4, !!1],
+		[[@tf],    undef,  !!0, !!0, undef, $FE         ], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 0,     !!0         ], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Foo\n"], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Bar"  ], !!0,
+		[[],       $tf[1], !!1, !!1, 3,     !!0, "Quz\n"], !!0,
+		[[],       $tf[1], !!1, !!1, 4,     !!1, "Baz\n"], !!1,
+		[[],       $tf[1], !!0, !!0, 4,     !!1         ],
 	], 'states' or diag explain \@states;
 };
 
-subtest 'inplace()' => sub {
-	local (*ARGV, *ARGVOUT, $.);
+subtest 'basic test with inplace()' => sub { plan tests=>11;
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my @tf = (newtempfn("X\nY\nZ"), newtempfn("AA\nBB\nCC\n"));
-	my @files = @tf;
-	local @ARGV = ('foo','bar');
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	my $inpl = inplace();
 	my @states;
-	{
-		my $inpl = inplace( files=>\@files );
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			print "$ARGV:$.: ".uc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV:$.:".lc;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
 	}
-	is_deeply \@ARGV, ['foo','bar'], '@ARGV unaffected';
-	is @files, 0, '@files was emptied';
-	is slurp($tf[0]), "$tf[0]:1:X\n$tf[0]:2:Y\n$tf[0]:3:Z", 'file 1 contents';
-	is slurp($tf[1]), "$tf[1]:4:AA\n$tf[1]:5:BB\n$tf[1]:6:CC\n", 'file 2 contents';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tf[0]), "$tf[0]:1:x\n$tf[0]:2:y\n$tf[0]:3:z", 'file 1 contents';
+	is slurp($tf[1]), "$tf[1]:4:aa\n$tf[1]:5:bb\n$tf[1]:6:cc\n", 'file 2 contents';
 	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[0], 1, !!0], !!0,
-		[$tf[0], 2, !!0], !!0,       [$tf[0], 3, !!1], !!0,
-		[$tf[1], 4, !!0], !!0,       [$tf[1], 5, !!0], !!0,
-		[$tf[1], 6, !!1], !!1,       [$tf[1], 6, !!1],
+		[[@tf],    undef,  !!0, !!0, undef, $FE        ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "X\n" ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0, "Y\n" ],
+		[[$tf[1]], $tf[0], !!1, !!1, 3,     !!1, "Z"   ],
+		[[],       $tf[1], !!1, !!1, 4,     !!0, "AA\n"],
+		[[],       $tf[1], !!1, !!1, 5,     !!0, "BB\n"],
+		[[],       $tf[1], !!1, !!1, 6,     !!1, "CC\n"],
+		[[],       $tf[1], !!0, !!0, 6,     !!1        ],
 	], 'states' or diag explain \@states;
 };
 
-subtest 'backup' => sub {
-	local (*ARGV, *ARGVOUT, $.);
+testboth 'backup' => sub { plan tests=>8;
 	my $tfn = newtempfn("Foo\nBar");
 	my $bfn = $tfn.'.bak';
-	{
-		ok !-e $bfn, 'backup file doesn\'t exist yet';
-		my $inpl = File::Replace::Inplace->new( files=>[$tfn], backup=>'.bak' );
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		is eof, $FE, 'eof before';
-		is eof(), !!0, 'eof() before';
-		print "$ARGV+$.+$_" while <>;
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		is eof, !!1, 'eof after';
+	@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
+	ok !-e $bfn, 'backup file doesn\'t exist yet';
+	my @states;
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV+$.+$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
 	}
-	is $., 2, '$. correct';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
 	is slurp($tfn), "$tfn+1+Foo\n$tfn+2+Bar", 'file edited correctly';
 	is slurp($bfn), "Foo\nBar", 'backup file correct';
+	is_deeply \@states, [
+		[[$tfn], undef, !!0, !!0, undef, $FE         ],
+		[[],     $tfn,  !!1, !!1, 1,     !!0, "Foo\n"],
+		[[],     $tfn,  !!1, !!1, 2,     !!1, "Bar"  ],
+		[[],     $tfn,  !!0, !!0, 2,     !!1         ],
+	], 'states' or diag explain \@states;
+}, { backup=>'.bak' };
+
+testboth 'readline contexts' => sub { plan tests=>9;
+	# we test scalar everywhere, need to test the others too
+	my @tf = (newtempfn("Alpha"), newtempfn("Bravo\nCharlie\nDelta"), newtempfn("Echo\n!!!"));
+	my @states;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	for (1..2) {
+		<>; # void ctx
+		print "<$_>";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	}
+	print "Hi?\n";
+	my @got = <>; # list ctx
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is_deeply \@got, ["Charlie\n","Delta","Echo\n","!!!"], 'list ctx'
+		or diag explain \@got;
+	is slurp($tf[0]), "<1>", 'file 1 correct';
+	is slurp($tf[1]), "<2>Hi?\n", 'file 2 correct';
+	is slurp($tf[2]), "", 'file 3 correct';
+	is_deeply \@states, [
+		[[@tf],      undef,  !!0, !!0, undef, $FE],
+		[[@tf[1,2]], $tf[0], !!1, !!1, 1,     !!1],
+		[[$tf[2]],   $tf[1], !!1, !!1, 2,     !!0],
+		[[],         $tf[2], !!0, !!0, 6,     !!1],
+	], 'states' or diag explain \@states;
 };
 
-subtest 'cmdline' => sub {
+testboth 'restart argv' => sub { plan tests=>11;
+	my $tfn = newtempfn("111\n222\n333\n");
+	my @states;
+	@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "X/$.:$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected in between';
+	@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "Y/$.:$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'file correct';
+	is_deeply \@states, [
+		[[$tfn], undef, !!0, !!0, undef, $FE             ],
+		[[],     $tfn,  !!1, !!1, 1,     !!0, "111\n"    ],
+		[[],     $tfn,  !!1, !!1, 2,     !!0, "222\n"    ],
+		[[],     $tfn,  !!1, !!1, 3,     !!1, "333\n"    ],
+		[[],     $tfn,  !!0, !!0, 3,     !!1             ],
+		[[$tfn], $tfn,  !!0, !!0, 3,     !!1             ],
+		[[],     $tfn,  !!1, !!1, 1,     !!0, "X/1:111\n"],
+		[[],     $tfn,  !!1, !!1, 2,     !!0, "X/2:222\n"],
+		[[],     $tfn,  !!1, !!1, 3,     !!1, "X/3:333\n"],
+		[[],     $tfn,  !!0, !!0, 3,     !!1             ],
+	], 'states' or diag explain \@states;
+};
+
+testboth 'close on eof to reset $.' => sub { plan tests=>15;
+	my @tf = (newtempfn("One\nTwo\nThree\n"), newtempfn("Four\nFive\nSix"));
+	my @states;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "($.)$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	} continue {
+		# the reason for the extra "close select" is documented
+		if (eof) { close ARGV; close select if $TESTMODE eq 'Perl'; }  ## no critic (ProhibitOneArgSelect)
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	}
+	is select(), 'main::STDOUT', 'STDOUT is selected in between';
+	@ARGV = ($tf[0]);  ## no critic (RequireLocalizedPunctuationVars)
+	while (<>) {
+		print "[$.]$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	} continue {
+		if (eof) { close ARGV; close select if $TESTMODE eq 'Perl'; }  ## no critic (ProhibitOneArgSelect)
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	}
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tf[0]), "[1](1)One\n[2](2)Two\n[3](3)Three\n", 'file 1 correct';
+	is slurp($tf[1]), "(1)Four\n(2)Five\n(3)Six", 'file 2 correct';
+	is_deeply \@states, [
+		[[@tf],    undef,  !!0, !!0, undef, $FE              ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "One\n"     ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0,             ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0, "Two\n"     ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0,             ],
+		[[$tf[1]], $tf[0], !!1, !!1, 3,     !!1, "Three\n"   ],
+		[[$tf[1]], $tf[0], !!0, !!0, 0,     !!1,             ],
+		[[],       $tf[1], !!1, !!1, 1,     !!0, "Four\n"    ],
+		[[],       $tf[1], !!1, !!1, 1,     !!0,             ],
+		[[],       $tf[1], !!1, !!1, 2,     !!0, "Five\n"    ],
+		[[],       $tf[1], !!1, !!1, 2,     !!0,             ],
+		[[],       $tf[1], !!1, !!1, 3,     !!1, "Six"       ],
+		[[],       $tf[1], !!0, !!0, 0,     !!1,             ],
+		[[],       $tf[0], !!1, !!1, 1,     !!0, "(1)One\n"  ],
+		[[],       $tf[0], !!1, !!1, 1,     !!0,             ],
+		[[],       $tf[0], !!1, !!1, 2,     !!0, "(2)Two\n"  ],
+		[[],       $tf[0], !!1, !!1, 2,     !!0,             ],
+		[[],       $tf[0], !!1, !!1, 3,     !!1, "(3)Three\n"],
+		[[],       $tf[0], !!0, !!0, 0,     !!1,             ],
+	], 'states' or diag explain \@states;
+};
+
+testboth 'restart with emptied @ARGV' => sub { plan tests=>15;
+	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
+	my @states;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV:$.: ".uc;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected in between';
+	SKIP: {
+		skip "eof() not supported on tied handles on Perl<5.12", 2 if $CE;
+		ok !eof(), 'eof() is false';
+		is select(), 'main::STDOUT', 'STDOUT is still selected';
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	my @out;
+	while (<>) {
+		push @out, "2/$ARGV:$.: ".uc;
+		is select(), 'main::STDOUT', 'STDOUT *is* selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
+	is slurp($tf[0]), "$tf[0]:1: FO\n$tf[0]:2: BR", 'file 1 correct';
+	is slurp($tf[1]), "$tf[1]:3: QZ\n$tf[1]:4: BZ\n", 'file 2 correct';
+	#TODO Later: Determine if the following are bugs in File::Replace::Inplace, OverrideStdin, or Perl
+	# (is documented for now)
+	my $X = $TESTMODE eq 'Inplace' && !$CE ? !!0 : !!1;
+	my $Y = $TESTMODE eq 'Inplace' && $CE  ? !!1 : !!0;
+	is_deeply \@states, [
+		[[@tf],    undef,  !!0, !!0, undef, $FE           ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Fo\n"   ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Br"     ],
+		[[],       $tf[1], !!1, !!1, 3,     !!0, "Qz\n"   ],
+		[[],       $tf[1], !!1, !!1, 4,     !!1, "Bz\n"   ],
+		[[],       $tf[1], !!0, !!0, 4,     !!1           ],
+		$CE ? [[], $tf[1], !!0, !!0, 4,     !!1           ]
+		    : [[], '-',    !!1, !!0, 0,     !!0           ],
+		[[],       '-',    !!1, !!0, 1,     $Y,  "Hello\n"],
+		[[],       '-',    !!1, !!0, 2,     $X,  "World"  ],
+		[[],       '-',    !!0, !!0, 2,     $X            ],
+	], 'states' or diag explain \@states;
+}, { stdin=>"Hello\nWorld" };
+
+testboth 'nonexistent and empty files' => sub { plan tests=>17;
+	my @tf = (newtempfn(""), newtempfn("Hullo"), newtempfn, newtempfn(""), newtempfn, newtempfn("World!\nFoo!"), newtempfn(""));
+	ok !-e $tf[$_], "file ".($_+1)." doesn't exist" for 2,4;
+	my @states;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	use warnings NONFATAL => 'inplace';
+	my $warncount=0;
+	local $SIG{__WARN__} = sub {
+		if ( $_[0]=~/\bCan't open (?:\Q$tf[2]\E|\Q$tf[4]\E): / )
+			{ $warncount++ }
+		else { die @_ } };
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV'$.'$_";
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is_deeply [<>], ["$tf[1]'1'Hullo","$tf[5]'2'World!\n","$tf[5]'3'Foo!"], '<> in list ctx';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is slurp($tf[$_]), "", 'file '.($_+1).' correct' for 0,1,3,5,6;
+	# NOTE: difference to Perl's -i - File::Replace will create the files
+	#TODO Later: Also test different File::Replace create settings?
+	if ($TESTMODE eq 'Perl')
+		{ ok !-e $tf[$_],  "file ".($_+1)." doesn't exist" for 2,4 }
+	else
+		{ is slurp($tf[$_]), "", 'file '.($_+1).' correct' for 2,4 }
+	is_deeply \@states, [
+		[[@tf],       undef,  !!0, !!0, undef, $FE            ],
+		[[@tf[2..6]], $tf[1], !!1, !!1, 1,     !!1, "Hullo"   ],
+		[[$tf[6]],    $tf[5], !!1, !!1, 2,     !!0, "World!\n"],
+		[[$tf[6]],    $tf[5], !!1, !!1, 3,     !!1, "Foo!"    ],
+		[[],          $tf[6], !!0, !!0, 3,     !!1            ],
+		[[@tf],       $tf[6], !!0, !!0, 3,     !!1            ],
+		[[],          $tf[6], !!0, !!0, 3,     !!1            ],
+	], 'states' or diag explain \@states;
+	is $warncount, $TESTMODE eq 'Perl' ? 4 : 0, 'warning count';
+};
+
+testboth 'premature close' => sub { plan tests=>9;
+	my @tf = (newtempfn("foo\nBAR\n"), newtempfn("quZ\nBaz"));
+	my @states;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	my $l=<>;
+	print "$ARGV<$.>".ucfirst($l);
+	isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $l];
+	close ARGV; close select if $TESTMODE eq 'Perl';  ## no critic (ProhibitOneArgSelect)
+	isnt select(), 'main::STDOUT', 'STDOUT still isn\'t selected';
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$ARGV<$.>".ucfirst;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tf[0]), "$tf[0]<1>Foo\n", 'file 1 contents';
+	is slurp($tf[1]), "$tf[1]<1>QuZ\n$tf[1]<2>Baz", 'file 2 contents';
+	is_deeply \@states, [
+		[[@tf],    undef,  !!0, !!0, undef, $FE         ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "foo\n"],
+		[[$tf[1]], $tf[0], !!0, !!0, 0,     !!1         ],
+		[[],       $tf[1], !!1, !!1, 1,     !!0, "quZ\n"],
+		[[],       $tf[1], !!1, !!1, 2,     !!1, "Baz"  ],
+		[[],       $tf[1], !!0, !!0, 2,     !!1         ],
+	], 'states' or diag explain \@states;
+};
+
+my $prevdir = getcwd;
+my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
+chdir($tmpdir) or die "chdir $tmpdir: $!";
+testboth 'diamond' => sub { plan tests=>1;
+	spew("foo","I am foo\nbar");
+	spew("<foo","I am <foo!\nquz");
+	my @states;
+	@ARGV = ("<foo");  ## no critic (RequireLocalizedPunctuationVars)
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
+	is_deeply \@states, [
+		[["<foo"], undef,  !!0, undef, $FE                ],
+		[[],       "<foo", !!1, 1,     !!0, "I am <foo!\n"],
+		[[],       "<foo", !!1, 2,     !!1, "quz"         ],
+		[[],       "<foo", !!0, 2,     !!1                ],
+	], 'states for double-diamond';
+};
+testboth 'double-diamond' => sub {
+	plan $] lt '5.022' ? (skip_all => 'need Perl >=5.22 for double-diamond') : (tests=>1);
+	spew("foo","I am foo\nbar");
+	spew("<foo","I am <foo!\nquz");
+	my @states;
+	@ARGV = ("<foo");  ## no critic (RequireLocalizedPunctuationVars)
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
+	my $code = <<'    ENDCODE';  # need to eval this because otherwise <<>> is a syntax error on older Perls
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <<>>;
+	; 1
+    ENDCODE
+	eval $code or die $@||"unknown error";  ## no critic (ProhibitStringyEval, ProhibitMixedBooleanOperators)
+	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
+	is_deeply \@states, [
+		[["<foo"], undef,  !!0, undef, $FE                ],
+		[[],       "<foo", !!1, 1,     !!0, "I am <foo!\n"],
+		[[],       "<foo", !!1, 2,     !!1, "quz"         ],
+		[[],       "<foo", !!0, 2,     !!1                ],
+	], 'states for double-diamond';
+};
+chdir($prevdir) or warn "chdir $prevdir: $!";
+
+subtest 'perl -MFile::Replace=-i' => sub { plan tests=>10;
 	my @tf = (newtempfn("One\nTwo\n"), newtempfn("Three\nFour"));
 	is perl('-MFile::Replace=-i','-pe','s/[aeiou]/_/gi', @tf), '', 'no output';
 	is slurp($tf[0]), "_n_\nTw_\n", 'file 1 correct';
@@ -149,13 +490,13 @@ subtest 'cmdline' => sub {
 	is slurp($bf[1]), "Thr__\nF__r", 'backup file 2 correct';
 };
 
-subtest '-i in import list' => sub {
-	local (*ARGV, *ARGVOUT, $.);
+subtest '-i in import list' => sub { plan tests=>7;
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my @tf = (newtempfn("XX\nYY\n"), newtempfn("ABC\nDEF\nGHI"));
-	local @ARGV = @tf;
-	ok !defined $File::Replace::GlobalInplace, 'GlobalInplace not set yet';
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	ok !defined $File::Replace::GlobalInplace, 'GlobalInplace not set yet';  ## no critic (ProhibitPackageVars)
 	File::Replace->import('-i');
-	ok  defined $File::Replace::GlobalInplace, 'GlobalInplace is now set';
+	ok  defined $File::Replace::GlobalInplace, 'GlobalInplace is now set';  ## no critic (ProhibitPackageVars)
 	while (<>) {
 		print "$ARGV:$.:".lc;
 	}
@@ -171,10 +512,12 @@ subtest '-i in import list' => sub {
 	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
 };
 
-subtest 'cleanup' => sub { # mostly just to make code coverage happy
+subtest 'cleanup' => sub { plan tests=>1; # mostly just to make code coverage happy
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my $tmpfile = newtempfn("Yay\nHooray");
+	@ARGV = ($tmpfile);  ## no critic (RequireLocalizedPunctuationVars)
 	{
-		my $inpl = inplace( files=>[$tmpfile] );
+		my $inpl = inplace( );
 		print "<$.>$_" while <>;
 		$inpl->cleanup;
 		tie *ARGV, 'Tie::Handle::Base'; # cleanup should only untie if tied to File::Replace::Inplace
@@ -184,263 +527,7 @@ subtest 'cleanup' => sub { # mostly just to make code coverage happy
 	is slurp($tmpfile), "<1>Yay\n<2>Hooray", 'file correct';
 };
 
-subtest 'readline contexts' => sub { # we test scalar everywhere, need to test the others too
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("So"), newtempfn("Many\nTests\nis"), newtempfn("fun\n!!!"));
-	my @states;
-	{
-		my $inpl = inplace( files=>[@tf] );
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		# at the moment, void context is handled the same as scalar, but test it anyway
-		for (1..2) {
-			push @states, [$ARGV, $., eof], eof();
-			<>;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		print "Hi?\n";
-		my @got = <>;
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-		is_deeply \@got, ["Tests\n","is","fun\n","!!!"], 'list ctx' or diag explain \@got;
-	}
-	is slurp($tf[0]), "", 'file 1 correct';
-	is slurp($tf[1]), "Hi?\n", 'file 2 correct';
-	is slurp($tf[2]), "", 'file 3 correct';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[0], 0, !!0], !!0,
-		[$tf[0], 1, !!1], !!0,       [$tf[1], 1, !!0], !!0,
-		[$tf[1], 2, !!0], !!0,       [$tf[2], 6, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'restart' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my $tfn = newtempfn("111\n222\n333\n");
-	local @ARGV = ($tfn);
-	my @states;
-	{
-		my $inpl = File::Replace::Inplace->new();
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			print "X/$.:$_";
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected in between';
-		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
-		while (<>) {
-			print "Y/$.:$_";
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'file correct';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tfn, 1, !!0], !!0,
-		[$tfn, 2, !!0], !!0,         [$tfn, 3, !!1], !!1,
-		[$tfn, 1, !!0], !!0,         [$tfn, 2, !!0], !!0,
-		[$tfn, 3, !!1], !!1,         [$tfn, 3, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'reset $. on eof' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("One\nTwo\nThree\n"), newtempfn("Four\nFive\nSix"));
-	local @ARGV = @tf;
-	my @states;
-	{
-		my $inpl = File::Replace::Inplace->new();
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		#TODO: Can we use our overridden eof() here?
-		while (<>) {
-			print "($.)$_";
-			push @states, [$ARGV, $., eof];
-		}
-		# as documented in eof, this should reset $. per file
-		continue {
-			close ARGV if eof;
-			push @states, [$ARGV, $., eof];
-		}
-		@ARGV = ($tf[0]);  ## no critic (RequireLocalizedPunctuationVars)
-		while (<>) {
-			print "[$.]$_";
-			push @states, [$ARGV, $., eof];
-		}
-		continue {
-			close ARGV if eof;
-			push @states, [$ARGV, $., eof];
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is slurp($tf[0]), "[1](1)One\n[2](2)Two\n[3](3)Three\n", 'file 1 correct';
-	is slurp($tf[1]), "(1)Four\n(2)Five\n(3)Six", 'file 2 correct';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,
-		[$tf[0], 1, !!0],    [$tf[0], 1, !!0],
-		[$tf[0], 2, !!0],    [$tf[0], 2, !!0],
-		[$tf[0], 3, !!1],    [$tf[0], 0, !!1],
-		[$tf[1], 1, !!0],    [$tf[1], 1, !!0],
-		[$tf[1], 2, !!0],    [$tf[1], 2, !!0],
-		[$tf[1], 3, !!1],    [$tf[1], 0, !!1],
-		[$tf[0], 1, !!0],    [$tf[0], 1, !!0],
-		[$tf[0], 2, !!0],    [$tf[0], 2, !!0],
-		[$tf[0], 3, !!1],    [$tf[0], 0, !!1],
-		[$tf[0], 0, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'restart with emptied @ARGV' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
-	my @out;
-	my @states;
-	{
-		my $stdin = OverrideStdin->new("Hello\nWorld");
-		my $inpl = File::Replace::Inplace->new( files=>[@tf] );
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			print "$ARGV:$.: ".uc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected in between';
-		while (<>) {
-			push @out, "2/$ARGV:$.: ".uc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is_deeply \@out, ["2/-:1: HELLO\n", "2/-:2: WORLD"], 'stdin/out looks ok';
-	is slurp($tf[0]), "$tf[0]:1: FOO\n$tf[0]:2: BAR", 'file 1 correct';
-	is slurp($tf[1]), "$tf[1]:3: QUZ\n$tf[1]:4: BAZ\n", 'file 2 correct';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[0], 1, !!0], !!0,
-		[$tf[0], 2, !!1], !!0,       [$tf[1], 3, !!0], !!0,
-		[$tf[1], 4, !!1], !!1,       ['-',    1, !!0], !!0,
-		['-',    2, !!1], !!1,       ['-',    2, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'initially empty @ARGV' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @out;
-	my @states;
-	{
-		my $stdin = OverrideStdin->new("BlaH\nBlaHHH");
-		my $inpl = File::Replace::Inplace->new();
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			push @out, "+$ARGV:$.:".lc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is_deeply \@out, ["+-:1:blah\n", "+-:2:blahhh"], 'stdin/out looks ok';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    ['-', 1, !!0], !!0,
-		['-', 2, !!1], !!1,          ['-', 2, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'nonexistent files' => sub {
-	my @tf;
-	my %codes = (
-		scalar => sub {
-			my $inpl = File::Replace::Inplace->new( files=>[@tf] );
-			is_deeply [$ARGV, $., eof], [undef, undef, $FE], 'state 1';
-			is eof(), !!0, 'eof() 1';
-			is <>, 'Hullo', 'read 1';
-			print "World\n";
-			is_deeply [$ARGV, $., eof], [$tf[2], 1, !!1], 'state 2';
-			is eof(), !!1, 'eof() 2';
-			is <>, undef, 'read 2';
-			is_deeply [$ARGV, $., eof], [$tf[2], 1, !!1], 'state 3';
-		},
-		list => sub {
-			my $inpl = File::Replace::Inplace->new( files=>[@tf] );
-			is_deeply [$ARGV, $., eof], [undef, undef, $FE], 'state 1';
-			is eof(), !!0, 'eof() before';
-			is_deeply [<>], ["Hullo"], 'readline return correct';
-			is_deeply [$ARGV, $., eof], [$tf[2], 1, !!1], 'state 2';
-		},
-	);
-	plan tests => scalar keys %codes;
-	for my $k (sort keys %codes) {
-		subtest $k => sub {
-			local (*ARGV, *ARGVOUT, $.);
-			@tf = (newtempfn, newtempfn, newtempfn("Hullo"));
-			ok !-e $tf[0], 'file 1 doesn\'t exist yet';
-			ok !-e $tf[1], 'file 2 doesn\'t exist yet';
-			ok -e $tf[2], 'file 3 already exists';
-			is select(), 'main::STDOUT', 'STDOUT is selected initially';
-			$codes{$k}->();
-			is select(), 'main::STDOUT', 'STDOUT is selected again';
-			# NOTE: difference to Perl's -i - File::Replace will create the files
-			ok -e $tf[0], 'file 1 now exists';
-			ok -e $tf[1], 'file 2 now exists';
-			is slurp($tf[0]), '', 'file 1 is empty';
-			is slurp($tf[1]), '', 'file 2 is empty';
-			is slurp($tf[2]), $k eq 'scalar' ? "World\n" : "", 'file 3 contents ok';
-		};
-	}
-};
-
-subtest 'empty files' => sub {
-	local (*ARGV, *ARGVOUT, $.);
-	my @tf = (newtempfn(""), newtempfn("Hello"), newtempfn(""), newtempfn, newtempfn("World!\nFoo!"));
-	local @ARGV = @tf;
-	my @states;
-	{
-		my $inpl = File::Replace::Inplace->new();
-		is select(), 'main::STDOUT', 'STDOUT is selected initially';
-		push @states, [$ARGV, $., eof], eof();
-		while (<>) {
-			print "$ARGV($.) ".uc;
-			push @states, [$ARGV, $., eof], eof();
-		}
-		is select(), 'main::STDOUT', 'STDOUT is selected again';
-		push @states, [$ARGV, $., eof];
-	}
-	is @ARGV, 0, '@ARGV empty';
-	is slurp($tf[0]), "", 'file 1 contents';
-	is slurp($tf[1]), "$tf[1](1) HELLO", 'file 2 contents';
-	is slurp($tf[2]), "", 'file 3 contents';
-	ok !-e $tf[3], 'file 4 doesn\'t exist';
-	is slurp($tf[4]), "$tf[4](2) WORLD!\n$tf[4](3) FOO!", 'file 5 contents';
-	is_deeply \@states, [
-		[undef, undef, $FE], !!0,    [$tf[1], 1, !!1], !!0,
-		[$tf[4], 2, !!0], !!0,       [$tf[4], 3, !!1], !!1,
-		[$tf[4], 3, !!1],
-	], 'states' or diag explain \@states;
-};
-
-subtest 'various file names' => sub {
-	my $prevdir = getcwd;
-	my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
-	chdir($tmpdir) or die "chdir $tmpdir: $!";
-	spew("-","sttdddiiiinnnnn hello\nxyz\n");
-	spew("echo|","piipppeee world\naa bb cc");
-	local @ARGV = ("-","echo|");
-	{
-		my $inpl = inplace();
-		while (<>) {
-			chomp;
-			print join(",", map {ucfirst} split), "\n";
-		}
-	}
-	is slurp("-"), "Sttdddiiiinnnnn,Hello\nXyz\n", 'file 1 correct';
-	is slurp("echo|"), "Piipppeee,World\nAa,Bb,Cc\n", 'file 2 correct';
-	chdir($prevdir) or warn "chdir $prevdir: $!";
-};
-
-subtest 'debug' => sub {
+subtest 'debug' => sub { plan tests=>2;
 	note "Expect some debug output here:";
 	my $db = Test::More->builder->output;
 	ok( do { my $x=File::Replace::Inplace->new(debug=>$db); 1 }, 'debug w/ handle' );
@@ -448,7 +535,7 @@ subtest 'debug' => sub {
 	ok( do { my $x=File::Replace::Inplace->new(debug=>1); 1 }, 'debug w/o handle' );
 };
 
-subtest 'misc failures' => sub {
+subtest 'misc failures' => sub { plan tests=>7;
 	like exception { inplace(); 1 },
 		qr/\bUseless use of .*->new in void context\b/, 'inplace in void ctx';
 	like exception { my $x=inplace('foo') },
@@ -459,12 +546,11 @@ subtest 'misc failures' => sub {
 		qr/\bTIEHANDLE: bad number of args\b/, 'bad nr of args 3';
 	like exception { my $x=inplace(badarg=>1) },
 		qr/\bunknown option\b/, 'unknown arg';
-	like exception { my $x=inplace(files=>"foo") },
-		qr/\bmust be an arrayref\b/, 'bad file arg';
-	like exception {
-			my $i = inplace();
-			open ARGV, '<', newtempfn or die $!;  ## no critic (ProhibitBarewordFileHandles)
-			close ARGV;
-		}, qr/\bCan't reopen ARGV while tied\b/i, 'reopen ARGV';
+	{
+		my $x = inplace();
+		like exception { open ARGV; },  ## no critic (ProhibitBarewordFileHandles, RequireCheckedOpen, RequireBriefOpen)
+			qr/\bbad number of arguments to open\b/, 'bad nr of args to open 1';
+		like exception { open ARGV, '<', 'foo'; },  ## no critic (ProhibitBarewordFileHandles, RequireCheckedOpen, RequireBriefOpen)
+			qr/\bbad number of arguments to open\b/, 'bad nr of args to open 2';
+	}
 };
-
