@@ -196,7 +196,7 @@ Then use your custom tied handle:
 
 This is a base class for tied filehandles that reproduces the behavior
 of Perl's C<ARGV> filehandle, more commonly known as the magic C<< <> >>
-readline operator. By itself, this class attempts to reproduce the
+C<readline> operator. By itself, this class attempts to reproduce the
 behavior of the magical C<ARGV> and its associated variables (C<$ARGV>,
 C<@ARGV>, and C<$.>) as faithfully as possible.
 
@@ -337,7 +337,7 @@ C<eof> on tied handles. See L<perl5160delta/Filehandle, last-accessed>.
 It is therefore B<strongly recommended> to use this module on Perl 5.16
 and up. On older versions, be aware of the aforementioned issues.
 
-In addition, there are some slight behaviorial differences on Windows
+In addition, there are some slight behavioral differences on Windows
 up to and including Perl 5.16, and not all features of this module can
 currently be tested on Windows, in particular in regards to opening anything
 other than regular files, such as C<STDIN> via the special filename F<->.
