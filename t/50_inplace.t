@@ -33,7 +33,12 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>32;
+use Test::More
+	$^O eq 'MSWin32' && $] lt '5.028'
+		? (skip_all=>'Tests will fail on Win32 with Perls older then 5.28')
+			# see https://perldoc.pl/perldiag#Can't-do-inplace-edit-without-backup
+			# and https://perldoc.pl/perl5280delta#In-place-editing-with-perl-i-is-now-safer
+		: (tests=>32);
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
@@ -77,7 +82,7 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 		local $TESTMODE = 'Inplace';
 		local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 		local $CE = $] lt '5.012';
-		my $inpl = File::Replace::Inplace->new(%$args);
+		my $inpl = File::Replace::Inplace->new(debug=>$DEBUG, %$args);
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - ::Inplace" => $sub;
 		$osi and $osi->restore;
@@ -111,7 +116,9 @@ testboth 'basic test' => sub { plan tests=>9;
 };
 
 testboth 'basic test with eof()' => sub {
-	plan $CE ? ( skip_all=>"eof() not supported on tied handles on Perl<5.12" ) : (tests=>9);
+	if ($CE) { plan skip_all=>"eof() not supported on tied handles on Perl<5.12" }
+	elsif ($^O eq 'MSWin32') { plan skip_all=>"eof() acts differently on Win32" }
+	else { plan tests=>9 }
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	my @states;
@@ -143,7 +150,7 @@ subtest 'basic test with inplace()' => sub { plan tests=>12;
 	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my @tf = (newtempfn("X\nY\nZ"), newtempfn("AA\nBB\nCC\n"));
 	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
-	my $inpl = inplace();
+	my $inpl = inplace(debug=>$DEBUG);
 	isa_ok $inpl, 'File::Replace::Inplace';
 	my @states;
 	is select(), 'main::STDOUT', 'STDOUT is selected initially';
@@ -312,7 +319,8 @@ testboth 'close on eof to reset $.' => sub { plan tests=>15;
 	], 'states' or diag explain \@states;
 };
 
-testboth 'restart with emptied @ARGV' => sub { plan tests=>15;
+testboth 'restart with emptied @ARGV (STDIN)' => sub {
+	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>15); #TODO: OverrideStdin doesn't seem to work everywhere
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
 	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
@@ -409,7 +417,7 @@ subtest 'create option' => sub { plan tests=>9;
 		my @tf = (newtempfn("Hi"), newtempfn, newtempfn("There"));
 		ok !-e $tf[1], 'file doesn\'t exist yet';
 		@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
-		my $inpl = File::Replace::Inplace->new( create=>'now' );
+		my $inpl = File::Replace::Inplace->new( debug=>$DEBUG, create=>'now' );
 		is <>, "Hi", 'file 1 read ok';
 		print "Bingo1";
 		is <>, "There", 'file 3 read ok';
@@ -423,7 +431,7 @@ subtest 'create option' => sub { plan tests=>9;
 		my $tfn = newtempfn;
 		ok !-e $tfn, 'file doesn\'t exist';
 		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
-		my $inpl = File::Replace::Inplace->new( create=>'off' );
+		my $inpl = File::Replace::Inplace->new( debug=>$DEBUG, create=>'off' );
 		like exception { <>; 1 }, qr/\bfailed to open '\Q$tfn\E'/, 'read dies ok';
 	}
 };
@@ -435,7 +443,7 @@ subtest 'premature destroy' => sub { plan tests=>7;
 		my $tfn = newtempfn("IJK\nMNO");
 		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
 		my @states;
-		my $inpl = inplace();
+		my $inpl = inplace(debug=>$DEBUG);
 		is select(), 'main::STDOUT', 'STDOUT is selected initially';
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
 		is <>, "IJK\n", 'read ok';
@@ -488,7 +496,8 @@ testboth 'premature close' => sub { plan tests=>9;
 my $prevdir = getcwd;
 my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
 chdir($tmpdir) or die "chdir $tmpdir: $!";
-testboth 'diamond' => sub { plan tests=>1;
+testboth 'diamond' => sub {
+	plan $^O eq 'MSWin32' ? (skip_all => 'special filenames won\'t work on Windows') : (tests=>1);
 	spew("foo","I am foo\nbar");
 	spew("<foo","I am <foo!\nquz");
 	my @states;
@@ -504,7 +513,9 @@ testboth 'diamond' => sub { plan tests=>1;
 	], 'states for double-diamond';
 };
 testboth 'double-diamond' => sub {
-	plan $] lt '5.022' ? (skip_all => 'need Perl >=5.22 for double-diamond') : (tests=>1);
+	if ($] lt '5.022') { plan skip_all => 'need Perl >=5.22 for double-diamond' }
+	elsif ($^O eq 'MSWin32') { plan skip_all => 'special filenames won\'t work on Windows' }
+	else { plan tests=>1 }
 	spew("foo","I am foo\nbar");
 	spew("<foo","I am <foo!\nquz");
 	my @states;
@@ -567,7 +578,7 @@ subtest 'cleanup' => sub { plan tests=>1; # mostly just to make code coverage ha
 	my $tmpfile = newtempfn("Yay\nHooray");
 	@ARGV = ($tmpfile);  ## no critic (RequireLocalizedPunctuationVars)
 	{
-		my $inpl = inplace( );
+		my $inpl = inplace(debug=>$DEBUG);
 		print "<$.>$_" while <>;
 		$inpl->cleanup;
 		tie *ARGV, 'Tie::Handle::Base'; # cleanup should only untie if tied to File::Replace::Inplace
@@ -597,7 +608,7 @@ subtest 'misc failures' => sub { plan tests=>7;
 	like exception { my $x=inplace(badarg=>1) },
 		qr/\bunknown option\b/, 'unknown arg';
 	{
-		my $x = inplace();
+		my $x = inplace(debug=>$DEBUG);
 		like exception { open ARGV; },  ## no critic (ProhibitBarewordFileHandles, RequireCheckedOpen, RequireBriefOpen)
 			qr/\bbad number of arguments to open\b/, 'bad nr of args to open 1';
 		like exception { open ARGV, '<', 'foo'; },  ## no critic (ProhibitBarewordFileHandles, RequireCheckedOpen, RequireBriefOpen)

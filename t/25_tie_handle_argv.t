@@ -42,6 +42,10 @@ our $FE = $] ge '5.012' && $] lt '5.030' ? !!0 : !!1; # FE="first eof", see http
 #TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
+our $FL = undef; # FL="First Line"
+# apparently there are some versions of Perl on Win32 where the following two work slightly differently:
+if ( $^O eq 'MSWin32' && $] ge '5.014' && $] lt '5.018' )
+	{ $FL = 0; $FE = !!1 }
 
 diag "WARNING: Perl 5.16 or better is strongly recommended for Tie::Handle::Argv (see documentation)" if $] lt '5.016';
 
@@ -80,12 +84,12 @@ testboth 'basic test' => sub { plan tests=>1;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, $FE         ],
-		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Foo\n"],
-		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Bar\n"],
-		[[],       $tf[1], !!1, 3,     !!0, "Quz\n"],
-		[[],       $tf[1], !!1, 4,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, 4,     $BE?!!0:!!1 ],
+		[[@tf],    undef,  !!0, $FL, $FE         ],
+		[[$tf[1]], $tf[0], !!1, 1,   !!0, "Foo\n"],
+		[[$tf[1]], $tf[0], !!1, 2,   !!1, "Bar\n"],
+		[[],       $tf[1], !!1, 3,   !!0, "Quz\n"],
+		[[],       $tf[1], !!1, 4,   !!1, "Baz"  ],
+		[[],       $tf[1], !!0, 4,   $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -104,13 +108,13 @@ testboth 'basic test with eof()' => sub {
 	# another call to eof() now would open and try to read STDIN (we test that in the STDIN tests)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef,       $FE         ], !!0,
-		[[$tf[1]], $tf[0], !!1, $BE?undef:0, !!0         ], !!0,
-		[[$tf[1]], $tf[0], !!1, 1,           !!0, "Foo\n"], !!0,
-		[[$tf[1]], $tf[0], !!1, 2,           !!1, "Bar"  ], !!0,
-		[[],       $tf[1], !!1, 3,           !!0, "Quz\n"], !!0,
-		[[],       $tf[1], !!1, 4,           !!1, "Baz\n"], !!1,
-		[[],       $tf[1], !!0, 4,           $BE?!!0:!!1 ],
+		[[@tf],    undef,  !!0, $FL,       $FE         ], !!0,
+		[[$tf[1]], $tf[0], !!1, $BE?$FL:0, !!0         ], !!0,
+		[[$tf[1]], $tf[0], !!1, 1,         !!0, "Foo\n"], !!0,
+		[[$tf[1]], $tf[0], !!1, 2,         !!1, "Bar"  ], !!0,
+		[[],       $tf[1], !!1, 3,         !!0, "Quz\n"], !!0,
+		[[],       $tf[1], !!1, 4,         !!1, "Baz\n"], !!1,
+		[[],       $tf[1], !!0, 4,         $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -129,10 +133,10 @@ testboth 'readline contexts' => sub { plan tests=>2;
 	is_deeply \@got, ["Charlie\n","Delta","Echo\n","!!!"], 'list ctx'
 		or diag explain \@got;
 	is_deeply \@states, [
-		[[@tf],      undef,  !!0, undef, $FE        ],
-		[[@tf[1,2]], $tf[0], !!1, 1,     !!1        ],
-		[[$tf[2]],   $tf[1], !!1, 2,     !!0        ],
-		[[],         $tf[2], !!0, 6,     $BE?!!0:!!1],
+		[[@tf],      undef,  !!0, $FL, $FE        ],
+		[[@tf[1,2]], $tf[0], !!1, 1,   !!1        ],
+		[[$tf[2]],   $tf[1], !!1, 2,   !!0        ],
+		[[],         $tf[2], !!0, 6,   $BE?!!0:!!1],
 	], 'states' or diag explain \@states;
 };
 
@@ -148,16 +152,16 @@ testboth 'restart argv' => sub { plan tests=>1;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[$tfn], undef, !!0, undef, $FE         ],
-		[[],     $tfn,  !!1, 1,     !!0, "111\n"],
-		[[],     $tfn,  !!1, 2,     !!0, "222\n"],
-		[[],     $tfn,  !!1, 3,     !!1, "333\n"],
-		[[],     $tfn,  !!0, 3,     $BE?!!0:!!1 ],
-		[[$tfn], $tfn,  !!0, 3,     $BE?!!0:!!1 ],
-		[[],     $tfn,  !!1, 1,     !!0, "111\n"],
-		[[],     $tfn,  !!1, 2,     !!0, "222\n"],
-		[[],     $tfn,  !!1, 3,     !!1, "333\n"],
-		[[],     $tfn,  !!0, 3,     $BE?!!0:!!1 ],
+		[[$tfn], undef, !!0, $FL, $FE         ],
+		[[],     $tfn,  !!1, 1,   !!0, "111\n"],
+		[[],     $tfn,  !!1, 2,   !!0, "222\n"],
+		[[],     $tfn,  !!1, 3,   !!1, "333\n"],
+		[[],     $tfn,  !!0, 3,   $BE?!!0:!!1 ],
+		[[$tfn], $tfn,  !!0, 3,   $BE?!!0:!!1 ],
+		[[],     $tfn,  !!1, 1,   !!0, "111\n"],
+		[[],     $tfn,  !!1, 2,   !!0, "222\n"],
+		[[],     $tfn,  !!1, 3,   !!1, "333\n"],
+		[[],     $tfn,  !!0, 3,   $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
@@ -180,25 +184,25 @@ testboth 'close on eof to reset $.' => sub { plan tests=>1;
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	}
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, $FE            ],
-		[[$tf[1]], $tf[0], !!1, 1,     !!0, "One\n"   ],
-		[[$tf[1]], $tf[0], !!1, 1,     !!0,           ],
-		[[$tf[1]], $tf[0], !!1, 2,     !!0, "Two\n"   ],
-		[[$tf[1]], $tf[0], !!1, 2,     !!0,           ],
-		[[$tf[1]], $tf[0], !!1, 3,     !!1, "Three\n" ],
-		[[$tf[1]], $tf[0], !!0, 0,     !!1,           ],
-		[[],       $tf[1], !!1, 1,     !!0, "Four\n"  ],
-		[[],       $tf[1], !!1, 1,     !!0,           ],
-		[[],       $tf[1], !!1, 2,     !!0, "Five\n"  ],
-		[[],       $tf[1], !!1, 2,     !!0,           ],
-		[[],       $tf[1], !!1, 3,     !!1, "Six"     ],
-		[[],       $tf[1], !!0, 0,     !!1,           ],
-		[[],       $tf[0], !!1, 1,     !!0, "One\n"   ],
-		[[],       $tf[0], !!1, 1,     !!0,           ],
-		[[],       $tf[0], !!1, 2,     !!0, "Two\n"   ],
-		[[],       $tf[0], !!1, 2,     !!0,           ],
-		[[],       $tf[0], !!1, 3,     !!1, "Three\n" ],
-		[[],       $tf[0], !!0, 0,     !!1,           ],
+		[[@tf],    undef,  !!0, $FL, $FE            ],
+		[[$tf[1]], $tf[0], !!1, 1,   !!0, "One\n"   ],
+		[[$tf[1]], $tf[0], !!1, 1,   !!0,           ],
+		[[$tf[1]], $tf[0], !!1, 2,   !!0, "Two\n"   ],
+		[[$tf[1]], $tf[0], !!1, 2,   !!0,           ],
+		[[$tf[1]], $tf[0], !!1, 3,   !!1, "Three\n" ],
+		[[$tf[1]], $tf[0], !!0, 0,   !!1,           ],
+		[[],       $tf[1], !!1, 1,   !!0, "Four\n"  ],
+		[[],       $tf[1], !!1, 1,   !!0,           ],
+		[[],       $tf[1], !!1, 2,   !!0, "Five\n"  ],
+		[[],       $tf[1], !!1, 2,   !!0,           ],
+		[[],       $tf[1], !!1, 3,   !!1, "Six"     ],
+		[[],       $tf[1], !!0, 0,   !!1,           ],
+		[[],       $tf[0], !!1, 1,   !!0, "One\n"   ],
+		[[],       $tf[0], !!1, 1,   !!0,           ],
+		[[],       $tf[0], !!1, 2,   !!0, "Two\n"   ],
+		[[],       $tf[0], !!1, 2,   !!0,           ],
+		[[],       $tf[0], !!1, 3,   !!1, "Three\n" ],
+		[[],       $tf[0], !!0, 0,   !!1,           ],
 	], 'states' or diag explain \@states;
 };
 
@@ -207,7 +211,7 @@ testboth 'close on eof to reset $.' => sub { plan tests=>1;
 #TODO Later: I can't run both STDIN tests in one file, not sure why yet
 # Once this is working, copy this test to the File::Replace::Inplace tests as well
 
-testboth 'initially empty @ARGV' => sub { plan tests=>1;
+testboth 'initially empty @ARGV (STDIN)' => sub { plan tests=>1;
 	my @states;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
@@ -224,7 +228,8 @@ testboth 'initially empty @ARGV' => sub { plan tests=>1;
 
 =cut
 
-testboth 'restart with emptied @ARGV' => sub { plan tests=>2;
+testboth 'restart with emptied @ARGV (STDIN)' => sub {
+	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>2); #TODO: OverrideStdin doesn't seem to work everywhere
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
 	local @ARGV = @tf;
@@ -273,13 +278,13 @@ testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	ok !-e $tf[$_], "file ".($_+1)." doesn't exist" for 2,4;
 	is_deeply \@states, [
-		[[@tf],       undef,  !!0, undef, $FE            ],
-		[[@tf[2..6]], $tf[1], !!1, 1,     !!1, "Hullo"   ],
-		[[$tf[6]],    $tf[5], !!1, 2,     !!0, "World!\n"],
-		[[$tf[6]],    $tf[5], !!1, 3,     !!1, "Foo!"    ],
-		[[],          $tf[6], !!0, 3,     $BE?!!0:!!1    ],
-		[[@tf],       $tf[6], !!0, 3,     $BE?!!0:!!1    ],
-		[[],          $tf[6], !!0, 3,     $BE?!!0:!!1    ],
+		[[@tf],       undef,  !!0, $FL, $FE            ],
+		[[@tf[2..6]], $tf[1], !!1, 1,   !!1, "Hullo"   ],
+		[[$tf[6]],    $tf[5], !!1, 2,   !!0, "World!\n"],
+		[[$tf[6]],    $tf[5], !!1, 3,   !!1, "Foo!"    ],
+		[[],          $tf[6], !!0, 3,   $BE?!!0:!!1    ],
+		[[@tf],       $tf[6], !!0, 3,   $BE?!!0:!!1    ],
+		[[],          $tf[6], !!0, 3,   $BE?!!0:!!1    ],
 	], 'states' or diag explain \@states;
 	is $warncount, 4, 'warning count';
 };
@@ -296,16 +301,19 @@ testboth 'premature close' => sub { plan tests=>1;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, $FE         ],
-		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Foo\n"],
-		[[$tf[1]], $tf[0], !!0, 0,     !!1         ],
-		[[],       $tf[1], !!1, 1,     !!0, "Quz\n"],
-		[[],       $tf[1], !!1, 2,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, 2,     $BE?!!0:!!1 ],
+		[[@tf],    undef,  !!0, $FL, $FE         ],
+		[[$tf[1]], $tf[0], !!1, 1,   !!0, "Foo\n"],
+		[[$tf[1]], $tf[0], !!0, 0,   !!1         ],
+		[[],       $tf[1], !!1, 1,   !!0, "Quz\n"],
+		[[],       $tf[1], !!1, 2,   !!1, "Baz"  ],
+		[[],       $tf[1], !!0, 2,   $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
 };
 
-subtest 'special filenames and double-diamond' => sub { plan tests=>2*2;
+subtest 'special filenames and double-diamond' => sub {
+	# Windows filenames don't allow any of <, >, or |, so we can't create files with these names to test with.
+	# Since we're mostly testing the logic of the module vs. Perl, if these tests pass on *NIX, it should be ok.
+	plan $^O eq 'MSWin32' ? (skip_all => 'special filenames won\'t work on Windows') : (tests=>2*2);
 	my $prevdir = getcwd;
 	my $tmpdir = tempdir(DIR=>$TEMPDIR,CLEANUP=>1);
 	chdir($tmpdir) or die "chdir $tmpdir: $!";
