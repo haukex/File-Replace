@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>20;
+use Test::More tests=>21;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
@@ -56,7 +56,8 @@ BEGIN { use_ok('Tie::Handle::Argv') }
 sub testboth {  ## no critic (RequireArgUnpacking)
 	# test that both regular ARGV and our tied base class act the same
 	die "bad nr of args" unless @_==2 || @_==3;
-	my ($name, $sub, $stdin) = @_;
+	my ($name, $sub, $args) = @_;
+	my $stdin = delete $$args{stdin};
 	{
 		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
@@ -116,6 +117,35 @@ testboth 'basic test with eof()' => sub {
 		[[],       $tf[1], !!1, 4,         !!1, "Baz\n"], !!1,
 		[[],       $tf[1], !!0, 4,         $BE?!!0:!!1 ],
 	], 'states' or diag explain \@states;
+};
+
+subtest 'custom files & filename' => sub { plan tests=>3;
+	local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
+	local $BE = $] ge '5.014' && $] lt '5.016';
+	my @testfiles1;
+	my $testfilename1;
+	my $obj = tie *ARGV, 'Tie::Handle::Argv', debug=>$DEBUG, files=>\@testfiles1, filename=>\$testfilename1;
+	my @tf = (newtempfn("Foo\nBar\n"), newtempfn("Quz\nBaz"));
+	my @states;
+	@ARGV = ("foo");  ## no critic (RequireLocalizedPunctuationVars)
+	@testfiles1 = @tf;
+	push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), $., eof];
+	push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), $., eof, $_] while <>;
+	push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), $., eof];
+	is_deeply \@states, [
+		[["foo"], undef, [@tf],    undef,  !!0, $FL, $FE         ],
+		[["foo"], undef, [$tf[1]], $tf[0], !!1, 1,   !!0, "Foo\n"],
+		[["foo"], undef, [$tf[1]], $tf[0], !!1, 2,   !!1, "Bar\n"],
+		[["foo"], undef, [],       $tf[1], !!1, 3,   !!0, "Quz\n"],
+		[["foo"], undef, [],       $tf[1], !!1, 4,   !!1, "Baz"  ],
+		[["foo"], undef, [],       $tf[1], !!0, 4,   $BE?!!0:!!1 ],
+	], 'states' or diag explain \@states;
+	{ # make code coverage happy
+		is 0+@testfiles1, 0, 'testfiles empty';
+		$obj->init_empty_argv;
+		is_deeply \@testfiles1, ['-'], 'testfiles was populated';
+	}
+	untie *ARGV;
 };
 
 testboth 'readline contexts' => sub { plan tests=>2;
@@ -222,7 +252,7 @@ testboth 'initially empty @ARGV (STDIN)' => sub { plan tests=>1;
 		[[], '-',   !!1, 2,     !!1, "BlaHHH"],
 		[[], '-',   !!0, 2,     !!1          ],
 	], 'states' or diag explain \@states;
-}, "BlaH\nBlaHHH";
+}, {stdin=>"BlaH\nBlaHHH"};
 
 =end comment
 
@@ -256,7 +286,7 @@ testboth 'restart with emptied @ARGV (STDIN)' => sub {
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
 		[[],       '-',    !!0, 2,     $BE?!!0:!!1   ],
 	], 'states' or diag explain \@states;
-}, "Hello\nWorld";
+}, {stdin=>"Hello\nWorld"};
 
 testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	my @tf = (newtempfn(""), newtempfn("Hullo"), newtempfn, newtempfn(""), newtempfn, newtempfn("World!\nFoo!"), newtempfn(""));
@@ -378,7 +408,7 @@ subtest 'debugging (and coverage)' => sub { plan tests=>4;
 	untie *ARGV;
 };
 
-subtest 'misc errors' => sub { plan tests=>5;
+subtest 'misc errors' => sub { plan tests=>7;
 	local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
 	like exception {
 			tie *ARGV, 'Tie::Handle::Argv', "foo";
@@ -386,6 +416,12 @@ subtest 'misc errors' => sub { plan tests=>5;
 	like exception {
 			tie *ARGV, 'Tie::Handle::Argv', foo => "bar";
 		}, qr/\bunknown argument 'foo'/, 'tiehandle bad arg';
+	like exception {
+			tie *ARGV, 'Tie::Handle::Argv', files => "files";
+		}, qr/\bmust be an arrayref\b/, 'tiehandle bad files arg';
+	like exception {
+			tie *ARGV, 'Tie::Handle::Argv', filename => "filename";
+		}, qr/\bmust be a scalar ref\b/, 'tiehandle bad filename arg';
 	tie *ARGV, 'Tie::Handle::Argv', debug=>$DEBUG;
 	like exception { tied(*ARGV)->_close() },
 		qr/\bbad number of arguments\b/, '_close bad nr of args';

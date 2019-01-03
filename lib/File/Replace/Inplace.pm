@@ -17,8 +17,9 @@ sub new {  ## no critic (RequireArgUnpacking)
 	my %args = @_; # really just so we can inspect the debug option
 	my $self = {
 		_debug => ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef),
+		_h_argv => *ARGV{IO},
 	};
-	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
+	tie *{$self->{_h_argv}}, 'File::Replace::Inplace::TiedArgv', @_;
 	bless $self, $class;
 	$self->_debug("$class->new: tied ARGV\n");
 	return $self;
@@ -26,11 +27,12 @@ sub new {  ## no critic (RequireArgUnpacking)
 *_debug = \&File::Replace::_debug;  ## no critic (ProtectPrivateVars)
 sub cleanup {
 	my $self = shift;
-	if ( defined( my $tied = tied(*ARGV) ) ) {
+	if ( defined($self->{_h_argv}) && defined( my $tied = tied(*{$self->{_h_argv}}) ) ) {
 		if ( $tied->isa('File::Replace::Inplace::TiedArgv') ) {
 			$self->_debug(ref($self)."->cleanup: untieing ARGV\n");
-			untie *ARGV;
+			untie *{$self->{_h_argv}};
 		}
+		delete $self->{_h_argv};
 	}
 	delete $self->{_debug};
 	return 1;
@@ -52,14 +54,17 @@ sub DESTROY { return shift->cleanup }
 	# this is mostly the same as %NEW_KNOWN_OPTS from File::Replace,
 	# except without "in_fh" (note "debug" is also passed to the superclass)
 	my %TIEHANDLE_KNOWN_OPTS = map {$_=>1} qw/ debug layers create chmod
-		perms autocancel autofinish backup /;
+		perms autocancel autofinish backup files filename /;
 	
 	sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 		croak __PACKAGE__."->TIEHANDLE: bad number of args" unless @_ && @_%2;
 		my ($class,%args) = @_;
 		for (keys %args) { croak "$class->tie/new: unknown option '$_'"
 			unless $TIEHANDLE_KNOWN_OPTS{$_} }
-		my $self = $class->SUPER::TIEHANDLE( debug => $args{debug} );
+		my %superargs = map { exists($args{$_}) ? ($_=>$args{$_}) : () }
+			qw/ files filename debug /;
+		delete @args{qw/ files filename /};
+		my $self = $class->SUPER::TIEHANDLE( %superargs );
 		$self->{_repl_opts} = \%args;
 		return $self;
 	}
@@ -156,9 +161,13 @@ by C<< File::Replace::Inplace->new() >> or via C<inplace()> from
 L<File::Replace|File::Replace> (the two are identical), it acts as a
 scope guard: C<ARGV> is tied when the object is created, and C<ARGV>
 is untied when the object goes out of scope (except if you tie C<ARGV>
-to another class in the meantime). You can pass the aforementioned
-constructors the same arguments as L<File::Replace|File::Replace> (with
-the exception of C<in_fh>).
+to another class in the meantime).
+
+You can pass the aforementioned constructors the same arguments as
+L<File::Replace|File::Replace>, with the exception of C<in_fh>, and
+in addition to the options supported by the
+L<Tie::Handle::Argv constructor|Tie::Handle::Argv/Constructor>,
+C<files> and C<filename>.
 
 Once C<ARGV> is tied, you can use C<< <> >> as you normally would, and
 the files in C<@ARGV> will be edited in-place using

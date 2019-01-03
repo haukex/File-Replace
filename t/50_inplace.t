@@ -33,7 +33,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>32;
+use Test::More tests=>33;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
@@ -148,6 +148,37 @@ testboth 'basic test with eof()' => sub {
 		[[],       $tf[1], !!1, !!1, 4,   !!1, "Baz\n"], !!1,
 		[[],       $tf[1], !!0, !!0, 4,   !!1         ],
 	], 'states' or diag explain \@states;
+};
+
+subtest 'custom files & filename' => sub { plan tests=>9;
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
+	my @testfiles1;
+	my $testfilename1;
+	my $inpl = File::Replace::Inplace->new(debug=>$DEBUG, files=>\@testfiles1, filename=>\$testfilename1);
+	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz"));
+	my @states;
+	@ARGV = ("qrs");  ## no critic (RequireLocalizedPunctuationVars)
+	@testfiles1 = @tf;
+	is select(), 'main::STDOUT', 'STDOUT is selected initially';
+	push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	while (<>) {
+		print "$testfilename1/$./".lc;
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected in loop';
+		push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof, $_];
+	}
+	push @states, [[@ARGV], $ARGV, [@testfiles1], $testfilename1, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+	is select(), 'main::STDOUT', 'STDOUT is selected again';
+	is slurp($tf[0]), "$tf[0]/1/foo\n$tf[0]/2/bar", 'file 1 contents';
+	is slurp($tf[1]), "$tf[1]/3/quz\n$tf[1]/4/baz", 'file 2 contents';
+	is_deeply \@states, [
+		[["qrs"], undef, [@tf],    undef,  !!0, !!0, $FL, $FE         ],
+		[["qrs"], undef, [$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "Foo\n"],
+		[["qrs"], undef, [$tf[1]], $tf[0], !!1, !!1, 2,   !!1, "Bar"  ],
+		[["qrs"], undef, [],       $tf[1], !!1, !!1, 3,   !!0, "Quz\n"],
+		[["qrs"], undef, [],       $tf[1], !!1, !!1, 4,   !!1, "Baz"  ],
+		[["qrs"], undef, [],       $tf[1], !!0, !!0, 4,   !!1         ],
+	], 'states' or diag explain \@states;
+	untie *ARGV;
 };
 
 subtest 'basic test with inplace()' => sub { plan tests=>12;
@@ -584,10 +615,18 @@ subtest 'cleanup' => sub { plan tests=>1; # mostly just to make code coverage ha
 	{
 		my $inpl = inplace(debug=>$DEBUG);
 		print "<$.>$_" while <>;
-		$inpl->cleanup;
+		$inpl->cleanup; # explicit cleanup call
+	}
+	{
+		my $inpl = inplace(debug=>$DEBUG);
 		tie *ARGV, 'Tie::Handle::Base'; # cleanup should only untie if tied to File::Replace::Inplace
 		$inpl->cleanup;
 		untie *ARGV;
+	}
+	{
+		my $inpl = inplace(debug=>$DEBUG);
+		untie *ARGV;
+		$inpl->cleanup; # cleanup when already untied
 	}
 	is slurp($tmpfile), "<1>Yay\n<2>Hooray", 'file correct';
 };

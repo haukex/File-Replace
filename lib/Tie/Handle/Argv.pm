@@ -11,7 +11,7 @@ our $VERSION = '0.09';
 require Tie::Handle::Base;
 our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
 
-my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ debug /;
+my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename debug /;
 
 sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
@@ -19,12 +19,15 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my %args = @_;
 	for (keys %args) { croak "$class->tie/new: unknown argument '$_'"
 		unless $TIEHANDLE_KNOWN_ARGS{$_} }
+	croak "$class->tie/new: filename must be a scalar ref"
+		if defined($args{filename}) && ref $args{filename} ne 'SCALAR';
+	croak "$class->tie/new: files must be an arrayref"
+		if defined($args{files}) && ref $args{files} ne 'ARRAY';
 	my $self = $class->SUPER::TIEHANDLE();
 	$self->{__lineno} = undef; # also keeps state: undef = not currently active, defined = active
 	$self->{__debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
-	#TODO: allow passing this class an arrayref to replace @ARGV (and scalar ref for $ARGV)
-	$self->{__s_argv} = undef;
-	$self->{__a_argv} = undef;
+	$self->{__s_argv} = $args{filename};
+	$self->{__a_argv} = $args{files};
 	return $self;
 }
 
@@ -200,6 +203,32 @@ C<@ARGV>, and C<$.>) as faithfully as possible.
 B<This documentation is somewhat sparse>, because I assume that if you
 want to subclass this class, you will probably have to look at its code
 anyway. I will expand on it as necessary (patches and suggestions welcome).
+
+=head2 Constructor
+
+The constructor C<TIEHANDLE> takes several optional arguments as key/value
+pairs:
+
+=over
+
+=item C<files>
+
+If you set this to an array reference, that array will be used instead of
+the default global C<@ARGV>.
+
+=item C<filename>
+
+If you set this to a reference to a scalar, then that scalar will be
+populated with the current filename instead of the default global C<$ARGV>.
+
+=item C<debug>
+
+Described in L</Debugging>; set this to either a true value or a reference
+to a filehandle to enable debugging.
+
+=back
+
+=head2 Subclassing
 
 You should first study L<Tie::Handle::Base>, of which this class is a
 subclass. In particular, note that this class wraps an "inner handle",
