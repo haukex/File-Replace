@@ -208,9 +208,9 @@ tied C<ARGV>.
 It is B<strongly recommended> to use this module on Perl 5.16 and up.
 On older versions, be aware of the aforementioned issues.
 
-In addition, this module's tests are currently B<not> run on Windows on
-Perl versions older than 5.28. Therefore, correct operation of this module
-can currently not be guaranteed on Windows on Perls 5.26 and older.
+In addition, a significant portion of this module's tests must be skipped
+on Windows on Perl versions older than 5.28. I would therefore strongly
+suggest using the most recent version of Perl for Windows.
 
 =head1 Author, Copyright, and License
 

@@ -33,12 +33,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More
-	$^O eq 'MSWin32' && $] lt '5.028'
-		? (skip_all=>'Tests will fail on Win32 with Perls older then 5.28')
-			# see https://perldoc.pl/perldiag#Can't-do-inplace-edit-without-backup
-			# and https://perldoc.pl/perl5280delta#In-place-editing-with-perl-i-is-now-safer
-		: (tests=>32);
+use Test::More tests=>32;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
@@ -52,6 +47,10 @@ use warnings FATAL => qw/ io inplace /;
 our $DEBUG = 0;
 our $FE = $] ge '5.012' && $] lt '5.030' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
+our $FL = undef; # FL="First Line"
+# apparently there are some versions of Perl on Win32 where the following two work slightly differently:
+if ( $^O eq 'MSWin32' && $] ge '5.014' && $] lt '5.018' )
+	{ $FL = 0; $FE = !!1 }
 
 diag "WARNING: Perl 5.16 or better is strongly recommended for File::Replace::Inplace\n\t"
 	."(see documentation of Tie::Handle::Argv for details)" if $] lt '5.016';
@@ -75,7 +74,12 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 		local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 		$^I = $$args{backup}||'';  ## no critic (RequireLocalizedPunctuationVars)
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
-		subtest "$name - Perl" => $sub;
+		subtest "$name - Perl" =>
+			$^O eq 'MSWin32' && $] lt '5.028' && !length($^I)
+				? sub { plan skip_all=>'This test would fail on Win32 with Perls older then 5.28' }
+					# see https://perldoc.pl/perldiag#Can't-do-inplace-edit-without-backup
+					# and https://perldoc.pl/perl5280delta#In-place-editing-with-perl-i-is-now-safer
+				: $sub;
 		$osi and $osi->restore;
 	}
 	{
@@ -106,12 +110,12 @@ testboth 'basic test' => sub { plan tests=>9;
 	is slurp($tf[0]), "$tf[0]:1: FOO\n$tf[0]:2: BAR\n", 'file 1 contents';
 	is slurp($tf[1]), "$tf[1]:3: QUZ\n$tf[1]:4: BAZ", 'file 2 contents';
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE         ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Foo\n"],
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Bar\n"],
-		[[],       $tf[1], !!1, !!1, 3,     !!0, "Quz\n"],
-		[[],       $tf[1], !!1, !!1, 4,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, !!0, 4,     !!1         ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE         ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "Foo\n"],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!1, "Bar\n"],
+		[[],       $tf[1], !!1, !!1, 3,   !!0, "Quz\n"],
+		[[],       $tf[1], !!1, !!1, 4,   !!1, "Baz"  ],
+		[[],       $tf[1], !!0, !!0, 4,   !!1         ],
 	], 'states' or diag explain \@states;
 };
 
@@ -136,13 +140,13 @@ testboth 'basic test with eof()' => sub {
 	is slurp($tf[0]), "$tf[0]:1: FOO\n$tf[0]:2: BAR", 'file 1 contents';
 	is slurp($tf[1]), "$tf[1]:3: QUZ\n$tf[1]:4: BAZ\n", 'file 2 contents';
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE         ], !!0,
-		[[$tf[1]], $tf[0], !!1, !!1, 0,     !!0         ], !!0,
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Foo\n"], !!0,
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Bar"  ], !!0,
-		[[],       $tf[1], !!1, !!1, 3,     !!0, "Quz\n"], !!0,
-		[[],       $tf[1], !!1, !!1, 4,     !!1, "Baz\n"], !!1,
-		[[],       $tf[1], !!0, !!0, 4,     !!1         ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE         ], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 0,   !!0         ], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "Foo\n"], !!0,
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!1, "Bar"  ], !!0,
+		[[],       $tf[1], !!1, !!1, 3,   !!0, "Quz\n"], !!0,
+		[[],       $tf[1], !!1, !!1, 4,   !!1, "Baz\n"], !!1,
+		[[],       $tf[1], !!0, !!0, 4,   !!1         ],
 	], 'states' or diag explain \@states;
 };
 
@@ -165,14 +169,14 @@ subtest 'basic test with inplace()' => sub { plan tests=>12;
 	is slurp($tf[0]), "$tf[0]:1:x\n$tf[0]:2:y\n$tf[0]:3:z", 'file 1 contents';
 	is slurp($tf[1]), "$tf[1]:4:aa\n$tf[1]:5:bb\n$tf[1]:6:cc\n", 'file 2 contents';
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE        ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "X\n" ],
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0, "Y\n" ],
-		[[$tf[1]], $tf[0], !!1, !!1, 3,     !!1, "Z"   ],
-		[[],       $tf[1], !!1, !!1, 4,     !!0, "AA\n"],
-		[[],       $tf[1], !!1, !!1, 5,     !!0, "BB\n"],
-		[[],       $tf[1], !!1, !!1, 6,     !!1, "CC\n"],
-		[[],       $tf[1], !!0, !!0, 6,     !!1        ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE        ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "X\n" ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!0, "Y\n" ],
+		[[$tf[1]], $tf[0], !!1, !!1, 3,   !!1, "Z"   ],
+		[[],       $tf[1], !!1, !!1, 4,   !!0, "AA\n"],
+		[[],       $tf[1], !!1, !!1, 5,   !!0, "BB\n"],
+		[[],       $tf[1], !!1, !!1, 6,   !!1, "CC\n"],
+		[[],       $tf[1], !!0, !!0, 6,   !!1        ],
 	], 'states' or diag explain \@states;
 };
 
@@ -194,10 +198,10 @@ testboth 'backup' => sub { plan tests=>8;
 	is slurp($tfn), "$tfn+1+Foo\n$tfn+2+Bar", 'file edited correctly';
 	is slurp($bfn), "Foo\nBar", 'backup file correct';
 	is_deeply \@states, [
-		[[$tfn], undef, !!0, !!0, undef, $FE         ],
-		[[],     $tfn,  !!1, !!1, 1,     !!0, "Foo\n"],
-		[[],     $tfn,  !!1, !!1, 2,     !!1, "Bar"  ],
-		[[],     $tfn,  !!0, !!0, 2,     !!1         ],
+		[[$tfn], undef, !!0, !!0, $FL, $FE         ],
+		[[],     $tfn,  !!1, !!1, 1,   !!0, "Foo\n"],
+		[[],     $tfn,  !!1, !!1, 2,   !!1, "Bar"  ],
+		[[],     $tfn,  !!0, !!0, 2,   !!1         ],
 	], 'states' or diag explain \@states;
 }, { backup=>'.bak' };
 
@@ -224,10 +228,10 @@ testboth 'readline contexts' => sub { plan tests=>9;
 	is slurp($tf[1]), "<2>Hi?\n", 'file 2 correct';
 	is slurp($tf[2]), "", 'file 3 correct';
 	is_deeply \@states, [
-		[[@tf],      undef,  !!0, !!0, undef, $FE],
-		[[@tf[1,2]], $tf[0], !!1, !!1, 1,     !!1],
-		[[$tf[2]],   $tf[1], !!1, !!1, 2,     !!0],
-		[[],         $tf[2], !!0, !!0, 6,     !!1],
+		[[@tf],      undef,  !!0, !!0, $FL, $FE],
+		[[@tf[1,2]], $tf[0], !!1, !!1, 1,   !!1],
+		[[$tf[2]],   $tf[1], !!1, !!1, 2,   !!0],
+		[[],         $tf[2], !!0, !!0, 6,   !!1],
 	], 'states' or diag explain \@states;
 };
 
@@ -255,16 +259,16 @@ testboth 'restart argv' => sub { plan tests=>11;
 	is select(), 'main::STDOUT', 'STDOUT is selected again';
 	is slurp($tfn), "Y/1:X/1:111\nY/2:X/2:222\nY/3:X/3:333\n", 'file correct';
 	is_deeply \@states, [
-		[[$tfn], undef, !!0, !!0, undef, $FE             ],
-		[[],     $tfn,  !!1, !!1, 1,     !!0, "111\n"    ],
-		[[],     $tfn,  !!1, !!1, 2,     !!0, "222\n"    ],
-		[[],     $tfn,  !!1, !!1, 3,     !!1, "333\n"    ],
-		[[],     $tfn,  !!0, !!0, 3,     !!1             ],
-		[[$tfn], $tfn,  !!0, !!0, 3,     !!1             ],
-		[[],     $tfn,  !!1, !!1, 1,     !!0, "X/1:111\n"],
-		[[],     $tfn,  !!1, !!1, 2,     !!0, "X/2:222\n"],
-		[[],     $tfn,  !!1, !!1, 3,     !!1, "X/3:333\n"],
-		[[],     $tfn,  !!0, !!0, 3,     !!1             ],
+		[[$tfn], undef, !!0, !!0, $FL, $FE             ],
+		[[],     $tfn,  !!1, !!1, 1,   !!0, "111\n"    ],
+		[[],     $tfn,  !!1, !!1, 2,   !!0, "222\n"    ],
+		[[],     $tfn,  !!1, !!1, 3,   !!1, "333\n"    ],
+		[[],     $tfn,  !!0, !!0, 3,   !!1             ],
+		[[$tfn], $tfn,  !!0, !!0, 3,   !!1             ],
+		[[],     $tfn,  !!1, !!1, 1,   !!0, "X/1:111\n"],
+		[[],     $tfn,  !!1, !!1, 2,   !!0, "X/2:222\n"],
+		[[],     $tfn,  !!1, !!1, 3,   !!1, "X/3:333\n"],
+		[[],     $tfn,  !!0, !!0, 3,   !!1             ],
 	], 'states' or diag explain \@states;
 };
 
@@ -297,25 +301,25 @@ testboth 'close on eof to reset $.' => sub { plan tests=>15;
 	is slurp($tf[0]), "[1](1)One\n[2](2)Two\n[3](3)Three\n", 'file 1 correct';
 	is slurp($tf[1]), "(1)Four\n(2)Five\n(3)Six", 'file 2 correct';
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE              ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "One\n"     ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0,             ],
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0, "Two\n"     ],
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!0,             ],
-		[[$tf[1]], $tf[0], !!1, !!1, 3,     !!1, "Three\n"   ],
-		[[$tf[1]], $tf[0], !!0, !!0, 0,     !!1,             ],
-		[[],       $tf[1], !!1, !!1, 1,     !!0, "Four\n"    ],
-		[[],       $tf[1], !!1, !!1, 1,     !!0,             ],
-		[[],       $tf[1], !!1, !!1, 2,     !!0, "Five\n"    ],
-		[[],       $tf[1], !!1, !!1, 2,     !!0,             ],
-		[[],       $tf[1], !!1, !!1, 3,     !!1, "Six"       ],
-		[[],       $tf[1], !!0, !!0, 0,     !!1,             ],
-		[[],       $tf[0], !!1, !!1, 1,     !!0, "(1)One\n"  ],
-		[[],       $tf[0], !!1, !!1, 1,     !!0,             ],
-		[[],       $tf[0], !!1, !!1, 2,     !!0, "(2)Two\n"  ],
-		[[],       $tf[0], !!1, !!1, 2,     !!0,             ],
-		[[],       $tf[0], !!1, !!1, 3,     !!1, "(3)Three\n"],
-		[[],       $tf[0], !!0, !!0, 0,     !!1,             ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE              ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "One\n"     ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0,             ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!0, "Two\n"     ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!0,             ],
+		[[$tf[1]], $tf[0], !!1, !!1, 3,   !!1, "Three\n"   ],
+		[[$tf[1]], $tf[0], !!0, !!0, 0,   !!1,             ],
+		[[],       $tf[1], !!1, !!1, 1,   !!0, "Four\n"    ],
+		[[],       $tf[1], !!1, !!1, 1,   !!0,             ],
+		[[],       $tf[1], !!1, !!1, 2,   !!0, "Five\n"    ],
+		[[],       $tf[1], !!1, !!1, 2,   !!0,             ],
+		[[],       $tf[1], !!1, !!1, 3,   !!1, "Six"       ],
+		[[],       $tf[1], !!0, !!0, 0,   !!1,             ],
+		[[],       $tf[0], !!1, !!1, 1,   !!0, "(1)One\n"  ],
+		[[],       $tf[0], !!1, !!1, 1,   !!0,             ],
+		[[],       $tf[0], !!1, !!1, 2,   !!0, "(2)Two\n"  ],
+		[[],       $tf[0], !!1, !!1, 2,   !!0,             ],
+		[[],       $tf[0], !!1, !!1, 3,   !!1, "(3)Three\n"],
+		[[],       $tf[0], !!0, !!0, 0,   !!1,             ],
 	], 'states' or diag explain \@states;
 };
 
@@ -355,17 +359,17 @@ testboth 'restart with emptied @ARGV (STDIN)' => sub {
 	my $X = $TESTMODE eq 'Inplace' && !$CE ? !!0 : !!1;
 	my $Y = $TESTMODE eq 'Inplace' && $CE  ? !!1 : !!0;
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE           ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "Fo\n"   ],
-		[[$tf[1]], $tf[0], !!1, !!1, 2,     !!1, "Br"     ],
-		[[],       $tf[1], !!1, !!1, 3,     !!0, "Qz\n"   ],
-		[[],       $tf[1], !!1, !!1, 4,     !!1, "Bz\n"   ],
-		[[],       $tf[1], !!0, !!0, 4,     !!1           ],
-		$CE ? [[], $tf[1], !!0, !!0, 4,     !!1           ]
-		    : [[], '-',    !!1, !!0, 0,     !!0           ],
-		[[],       '-',    !!1, !!0, 1,     $Y,  "Hello\n"],
-		[[],       '-',    !!1, !!0, 2,     $X,  "World"  ],
-		[[],       '-',    !!0, !!0, 2,     $X            ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE           ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "Fo\n"   ],
+		[[$tf[1]], $tf[0], !!1, !!1, 2,   !!1, "Br"     ],
+		[[],       $tf[1], !!1, !!1, 3,   !!0, "Qz\n"   ],
+		[[],       $tf[1], !!1, !!1, 4,   !!1, "Bz\n"   ],
+		[[],       $tf[1], !!0, !!0, 4,   !!1           ],
+		$CE ? [[], $tf[1], !!0, !!0, 4,   !!1           ]
+		    : [[], '-',    !!1, !!0, 0,   !!0           ],
+		[[],       '-',    !!1, !!0, 1,   $Y,  "Hello\n"],
+		[[],       '-',    !!1, !!0, 2,   $X,  "World"  ],
+		[[],       '-',    !!0, !!0, 2,   $X            ],
 	], 'states' or diag explain \@states;
 }, { stdin=>"Hello\nWorld" };
 
@@ -400,13 +404,13 @@ testboth 'nonexistent and empty files' => sub { plan tests=>17;
 	else
 		{ is slurp($tf[$_]), "", 'file '.($_+1).' correct' for 2,4 }
 	is_deeply \@states, [
-		[[@tf],       undef,  !!0, !!0, undef, $FE            ],
-		[[@tf[2..6]], $tf[1], !!1, !!1, 1,     !!1, "Hullo"   ],
-		[[$tf[6]],    $tf[5], !!1, !!1, 2,     !!0, "World!\n"],
-		[[$tf[6]],    $tf[5], !!1, !!1, 3,     !!1, "Foo!"    ],
-		[[],          $tf[6], !!0, !!0, 3,     !!1            ],
-		[[@tf],       $tf[6], !!0, !!0, 3,     !!1            ],
-		[[],          $tf[6], !!0, !!0, 3,     !!1            ],
+		[[@tf],       undef,  !!0, !!0, $FL, $FE            ],
+		[[@tf[2..6]], $tf[1], !!1, !!1, 1,   !!1, "Hullo"   ],
+		[[$tf[6]],    $tf[5], !!1, !!1, 2,   !!0, "World!\n"],
+		[[$tf[6]],    $tf[5], !!1, !!1, 3,   !!1, "Foo!"    ],
+		[[],          $tf[6], !!0, !!0, 3,   !!1            ],
+		[[@tf],       $tf[6], !!0, !!0, 3,   !!1            ],
+		[[],          $tf[6], !!0, !!0, 3,   !!1            ],
 	], 'states' or diag explain \@states;
 	is $warncount, $TESTMODE eq 'Perl' ? 4 : 0, 'warning count';
 };
@@ -454,9 +458,9 @@ subtest 'premature destroy' => sub { plan tests=>7;
 		is select(), 'main::STDOUT', 'STDOUT is selected again';
 		is slurp($tfn), "IJK\nMNO", 'file contents';
 		is_deeply \@states, [
-			[[$tfn], undef, !!0, !!0, undef, $FE        ],
-			[[],     $tfn,  !!1, !!1, 1,     !!0        ],
-			[[],     $tfn,  !!0, !!0, 1,     $CE?!!1:!!0],
+			[[$tfn], undef, !!0, !!0, $FL, $FE        ],
+			[[],     $tfn,  !!1, !!1, 1,   !!0        ],
+			[[],     $tfn,  !!0, !!0, 1,   $CE?!!1:!!0],
 		], 'states' or diag explain \@states;
 	} ), 1, 'warning about unclosed file';
 };
@@ -484,12 +488,12 @@ testboth 'premature close' => sub { plan tests=>9;
 	is slurp($tf[0]), "$tf[0]<1>Foo\n", 'file 1 contents';
 	is slurp($tf[1]), "$tf[1]<1>QuZ\n$tf[1]<2>Baz", 'file 2 contents';
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, !!0, undef, $FE         ],
-		[[$tf[1]], $tf[0], !!1, !!1, 1,     !!0, "foo\n"],
-		[[$tf[1]], $tf[0], !!0, !!0, 0,     !!1         ],
-		[[],       $tf[1], !!1, !!1, 1,     !!0, "quZ\n"],
-		[[],       $tf[1], !!1, !!1, 2,     !!1, "Baz"  ],
-		[[],       $tf[1], !!0, !!0, 2,     !!1         ],
+		[[@tf],    undef,  !!0, !!0, $FL, $FE         ],
+		[[$tf[1]], $tf[0], !!1, !!1, 1,   !!0, "foo\n"],
+		[[$tf[1]], $tf[0], !!0, !!0, 0,   !!1         ],
+		[[],       $tf[1], !!1, !!1, 1,   !!0, "quZ\n"],
+		[[],       $tf[1], !!1, !!1, 2,   !!1, "Baz"  ],
+		[[],       $tf[1], !!0, !!0, 2,   !!1         ],
 	], 'states' or diag explain \@states;
 };
 
