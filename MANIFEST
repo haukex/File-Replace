@@ -3,6 +3,7 @@ lib/File/Replace.pm
 lib/File/Replace/DualHandle.pm
 lib/File/Replace/Inplace.pm
 lib/File/Replace/SingleHandle.pm
+lib/Tie/Handle/Argv.pm
 lib/Tie/Handle/Base.pm
 LICENSE.txt
 Makefile.PL
@@ -14,6 +15,7 @@ t/11_chmod.t
 t/12_create.t
 t/13_copy.t
 t/20_tie_handle_base.t
+t/25_tie_handle_argv.t
 t/30_singlehandle.t
 t/40_dualhandle.t
 t/50_inplace.t
