@@ -8,7 +8,7 @@ use Scalar::Util qw/blessed/;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 ## no critic (RequireFinalReturn, RequireArgUnpacking)
 
@@ -153,8 +153,7 @@ A few limitations that exist in L<Tie::StdHandle|Tie::StdHandle> (at least
 versions up to and including 4.4) have been lifted: C<BINMODE> accepts the
 C<LAYER> argument, and C<WRITE> will return the length of the string written.
 
-This documentation describes version 0.09 of this module.
-B<This is a development version.>
+This documentation describes version 0.10 of this module.
 
 B<See Also:> L<perltie>, L<perlfunc/tie>, L<Tie::Handle>, L<Tie::StdHandle>
 
