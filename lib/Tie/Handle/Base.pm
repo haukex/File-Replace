@@ -31,8 +31,8 @@ sub TIEHANDLE {
 	@_ and warnings::warnif("too many arguments to $class->TIEHANDLE");
 	return bless { __innerhandle=>$innerhandle }, $class;
 }
-sub UNTIE    { shift->{__innerhandle}=undef; return }
-sub DESTROY  { shift->{__innerhandle}=undef; return }
+sub UNTIE    { delete shift->{__innerhandle}; return }
+sub DESTROY  { delete shift->{__innerhandle}; return }
 
 sub innerhandle { shift->{__innerhandle} }
 sub set_inner_handle { $_[0]->{__innerhandle} = $_[1] }

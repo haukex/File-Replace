@@ -124,7 +124,7 @@ testboth 'basic test with eof()' => sub {
 	elsif ($^O eq 'MSWin32') { plan skip_all=>"eof() acts differently on Win32" }
 	else { plan tests=>9 }
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
-	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	local @ARGV = @tf; # this also tests "local"ization after constructing the object
 	my @states;
 	is select(), 'main::STDOUT', 'STDOUT is selected initially';
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof], eof();

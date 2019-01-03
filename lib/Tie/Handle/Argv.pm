@@ -20,17 +20,20 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	for (keys %args) { croak "$class->tie/new: unknown argument '$_'"
 		unless $TIEHANDLE_KNOWN_ARGS{$_} }
 	my $self = $class->SUPER::TIEHANDLE();
-	$self->{_lineno} = undef; # also keeps state: undef = not currently active, defined = active
-	$self->{_debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
+	$self->{__lineno} = undef; # also keeps state: undef = not currently active, defined = active
+	$self->{__debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
+	#TODO: allow passing this class an arrayref to replace @ARGV (and scalar ref for $ARGV)
+	$self->{__s_argv} = undef;
+	$self->{__a_argv} = undef;
 	return $self;
 }
 
 sub _debug {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
-	return 1 unless $self->{_debug};
+	return 1 unless $self->{__debug};
 	confess "not enough arguments to _debug" unless @_;
 	local ($",$,,$\) = (' ');
-	return print {$self->{_debug}} ref($self), " DEBUG: ", @_ ,"\n";
+	return print {$self->{__debug}} ref($self), " DEBUG: ", @_ ,"\n";
 }
 
 sub inner_close {
@@ -42,53 +45,55 @@ sub _close {
 	my $keep_lineno = shift;
 	my $rv = $self->inner_close;
 	if ($keep_lineno)
-		{ $. = $self->{_lineno} }  ## no critic (RequireLocalizedPunctuationVars)
+		{ $. = $self->{__lineno} }  ## no critic (RequireLocalizedPunctuationVars)
 	else
-		{ $. = $self->{_lineno} = 0 }  ## no critic (RequireLocalizedPunctuationVars)
+		{ $. = $self->{__lineno} = 0 }  ## no critic (RequireLocalizedPunctuationVars)
 	return $rv; # see tests in 20_tie_handle_base.t: we know close always returns a scalar
 }
 sub CLOSE { return shift->_close(0) }
 
 sub init_empty_argv {
 	my $self = shift;
-	$self->_debug("adding '-' to \@ARGV");
-	unshift @ARGV, '-';
+	$self->_debug("adding '-' to file list");
+	unshift @{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV }, '-';
 	return;
 }
 sub advance_argv {
 	my $self = shift;
-	#TODO: allow passing this class an arrayref to replace @ARGV (and scalar ref for $ARGV)
-	$ARGV = shift @ARGV;  ## no critic (RequireLocalizedPunctuationVars)
-	return;
+	# Note: we do these gymnastics with the references because we always want
+	# to access the currently global $ARGV and @ARGV - if we just stored references
+	# to these in our object, we wouldn't notices changes due to "local"ization!
+	return ${ defined $self->{__s_argv} ? $self->{__s_argv} : \$ARGV }
+		= shift @{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV };
 }
 sub sequence_end {}
 sub _advance {
 	my $self = shift;
 	my $peek = shift;
 	confess "too many arguments to _advance" if @_;
-	if ( !defined($self->{_lineno}) && !@ARGV ) {
-		$self->_debug("\@ARGV is initially empty (\$.=0)");
-		# the normal ARGV also appears to reset $. to 0:
+	if ( !defined($self->{__lineno}) && !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
+		$self->_debug("file list is initially empty (\$.=0)");
+		# the normal <> also appears to reset $. to 0 in this case:
 		$. = 0;  ## no critic (RequireLocalizedPunctuationVars)
 		$self->init_empty_argv;
 	}
 	FILE: {
-		$self->_close(1) if defined $self->{_lineno};
-		if (!@ARGV) {
-			$self->_debug("\@ARGV is now empty, closing and done (\$.=$.)");
-			$self->{_lineno} = undef unless $peek;
+		$self->_close(1) if defined $self->{__lineno};
+		if ( !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
+			$self->_debug("file list is now empty, closing and done (\$.=$.)");
+			$self->{__lineno} = undef unless $peek;
 			$self->sequence_end;
 			return;
 		} # else
-		$self->advance_argv;
-		$self->_debug("opening '$ARGV'");
+		my $fn = $self->advance_argv;
+		$self->_debug("opening '$fn'");
 		# note: ->SUPER::OPEN uses ->CLOSE, but we don't want that, so we ->_close above
-		if ( $self->OPEN($ARGV) ) {
-			defined $self->{_lineno} or $self->{_lineno} = 0;
+		if ( $self->OPEN($fn) ) {
+			defined $self->{__lineno} or $self->{__lineno} = 0;
 		}
 		else {
-			$self->_debug("open '$ARGV' failed: $!");
-			warnings::warnif("inplace", "Can't open $ARGV: $!");
+			$self->_debug("open '$fn' failed: $!");
+			warnings::warnif("inplace", "Can't open $fn: $!");
 			redo FILE;
 		}
 	}
@@ -110,7 +115,7 @@ sub READLINE {
 		my $line = $self->read_one_line;
 		last unless defined $line;
 		push @out, $line;
-		$. = ++$self->{_lineno};  ## no critic (RequireLocalizedPunctuationVars)
+		$. = ++$self->{__lineno};  ## no critic (RequireLocalizedPunctuationVars)
 		last unless wantarray;
 	}
 	$self->_debug("readline: ",0+@out," lines (\$.=$.)");
@@ -145,13 +150,13 @@ sub WRITE { croak ref(shift)." is read-only" }
 
 sub UNTIE {
 	my $self = shift;
-	delete @$self{qw/_lineno _debug/};
+	delete @$self{ grep {/^__(?!innerhandle)/} keys %$self };
 	return $self->SUPER::UNTIE(@_);
 }
 
 sub DESTROY {
 	my $self = shift;
-	delete @$self{qw/_lineno _debug/};
+	delete @$self{ grep {/^__(?!innerhandle)/} keys %$self };
 	return $self->SUPER::DESTROY(@_);
 }
 
@@ -244,10 +249,10 @@ Takes no arguments and should return nothing ("C<return;>").
 =item C<advance_argv>
 
 This method should modify C<$ARGV> so that it contains the next filename
-to pass to the C<OPEN> method.
+to pass to the C<OPEN> method, and also return that filename.
 The default implementation is Perl's normal behavior, which is
 C<$ARGV = shift @ARGV;>.
-Takes no arguments and should return nothing ("C<return;>").
+Takes no arguments and should always return a scalar (the filename).
 
 =item C<OPEN>
 
@@ -279,6 +284,12 @@ counter C<$.>, whereas a C<close> operation that may occur when advancing
 to the next file in the sequence should not. This is why there is an internal
 C<_close> method to abstract out this behavior. If you do plan on overriding
 C<CLOSE>, then make sure you call the appropriate method in this class.
+
+=item Object Storage
+
+Subclasses may store whatever they like in this hashref, I<except> that keys
+beginning with two underscores (C<__>) are reserved for this base class
+and for L<Tie::Handle::Base|Tie::Handle::Base>.
 
 =back
 

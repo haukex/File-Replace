@@ -16,7 +16,7 @@ sub new {  ## no critic (RequireArgUnpacking)
 	croak "$class->new: bad number of args" if @_%2;
 	my %args = @_; # really just so we can inspect the debug option
 	my $self = {
-		debug => ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef),
+		_debug => ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef),
 	};
 	tie *ARGV, 'File::Replace::Inplace::TiedArgv', @_;
 	bless $self, $class;
@@ -32,7 +32,7 @@ sub cleanup {
 			untie *ARGV;
 		}
 	}
-	delete $self->{debug};
+	delete $self->{_debug};
 	return 1;
 }
 sub DESTROY { return shift->cleanup }
@@ -60,7 +60,7 @@ sub DESTROY { return shift->cleanup }
 		for (keys %args) { croak "$class->tie/new: unknown option '$_'"
 			unless $TIEHANDLE_KNOWN_OPTS{$_} }
 		my $self = $class->SUPER::TIEHANDLE( debug => $args{debug} );
-		$self->{repl_opts} = \%args;
+		$self->{_repl_opts} = \%args;
 		return $self;
 	}
 	
@@ -74,9 +74,9 @@ sub DESTROY { return shift->cleanup }
 			select(STDOUT);  ## no critic (ProhibitOneArgSelect)
 		}
 		else {
-			$self->{repl} = File::Replace->new($filename, %{$self->{repl_opts}} );
-			$self->set_inner_handle($self->{repl}->in_fh);
-			*ARGVOUT = $self->{repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
+			$self->{_repl} = File::Replace->new($filename, %{$self->{_repl_opts}} );
+			$self->set_inner_handle($self->{_repl}->in_fh);
+			*ARGVOUT = $self->{_repl}->out_fh;  ## no critic (RequireLocalizedPunctuationVars)
 			select(ARGVOUT);  ## no critic (ProhibitOneArgSelect)
 		}
 		return 1;
@@ -84,9 +84,9 @@ sub DESTROY { return shift->cleanup }
 	
 	sub inner_close {
 		my $self = shift;
-		if ( $self->{repl} ) {
-			$self->{repl}->finish;
-			$self->{repl} = undef;
+		if ( $self->{_repl} ) {
+			$self->{_repl}->finish;
+			$self->{_repl} = undef;
 		}
 		return 1;
 	}
@@ -102,7 +102,7 @@ sub DESTROY { return shift->cleanup }
 	sub UNTIE {
 		my $self = shift;
 		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
-		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
+		delete @$self{ grep {/^_[^_]/} keys %$self };
 		return $self->SUPER::UNTIE(@_);
 	}
 	
@@ -110,7 +110,7 @@ sub DESTROY { return shift->cleanup }
 		my $self = shift;
 		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
 		# File::Replace destructor will warn on unclosed file
-		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
+		delete @$self{ grep {/^_[^_]/} keys %$self };
 		return $self->SUPER::DESTROY(@_);
 	}
 	

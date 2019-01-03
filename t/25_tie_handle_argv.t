@@ -79,7 +79,7 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 testboth 'basic test' => sub { plan tests=>1;
 	my @tf = (newtempfn("Foo\nBar\n"), newtempfn("Quz\nBaz"));
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -97,7 +97,7 @@ testboth 'basic test with eof()' => sub {
 	plan $CE ? ( skip_all=>"eof() not supported on tied handles on Perl<5.12" ) : (tests=>1);
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	my @states;
-	local @ARGV = @tf;
+	local @ARGV = @tf; # this also tests "local"ization after constructing the object
 	# WARNING: eof() modifies $ARGV (and potentially others), so don't do e.g. [$ARGV, $., eof, eof()]!!
 	# See e.g. https://www.perlmonks.org/?node_id=289044 and https://www.perlmonks.org/?node_id=1076954
 	# and https://www.perlmonks.org/?node_id=1164369 and probably more
@@ -122,7 +122,7 @@ testboth 'readline contexts' => sub { plan tests=>2;
 	# we test scalar everywhere, need to test the others too
 	my @tf = (newtempfn("Alpha"), newtempfn("Bravo\nCharlie\nDelta"), newtempfn("Echo\n!!!"));
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	for (1..2) {
 		<>; # void ctx
@@ -143,7 +143,7 @@ testboth 'readline contexts' => sub { plan tests=>2;
 testboth 'restart argv' => sub { plan tests=>1;
 	my $tfn = newtempfn("111\n222\n333\n");
 	my @states;
-	local @ARGV = ($tfn);
+	@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -168,7 +168,7 @@ testboth 'restart argv' => sub { plan tests=>1;
 testboth 'close on eof to reset $.' => sub { plan tests=>1;
 	my @tf = (newtempfn("One\nTwo\nThree\n"), newtempfn("Four\nFive\nSix"));
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	while (<>) {
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_];
@@ -232,7 +232,7 @@ testboth 'restart with emptied @ARGV (STDIN)' => sub {
 	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>2); #TODO: OverrideStdin doesn't seem to work everywhere
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -262,7 +262,7 @@ testboth 'nonexistent and empty files' => sub { plan tests=>7;
 	my @tf = (newtempfn(""), newtempfn("Hullo"), newtempfn, newtempfn(""), newtempfn, newtempfn("World!\nFoo!"), newtempfn(""));
 	ok !-e $tf[$_], "file ".($_+1)." doesn't exist" for 2,4;
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	use warnings NONFATAL => 'inplace';
 	my $warncount;
 	local $SIG{__WARN__} = sub {
@@ -292,7 +292,7 @@ testboth 'nonexistent and empty files' => sub { plan tests=>7;
 testboth 'premature close' => sub { plan tests=>1;
 	my @tf = (newtempfn("Foo\nBar\n"), newtempfn("Quz\nBaz"));
 	my @states;
-	local @ARGV = @tf;
+	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	my $l=<>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $l];
@@ -322,7 +322,7 @@ subtest 'special filenames and double-diamond' => sub {
 	spew("<foo","I am <foo!\nquz");
 	testboth 'diamond' => sub { plan tests=>1;
 		my @states;
-		local @ARGV = ("<foo");
+		@ARGV = ("<foo");  ## no critic (RequireLocalizedPunctuationVars)
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -336,7 +336,7 @@ subtest 'special filenames and double-diamond' => sub {
 	testboth 'double-diamond' => sub {
 		plan $] lt '5.022' ? (skip_all => 'need Perl >=5.22 for double-diamond') : (tests=>1);
 		my @states;
-		local @ARGV = ("<foo");
+		@ARGV = ("<foo");  ## no critic (RequireLocalizedPunctuationVars)
 		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 		my $code = <<'        ENDCODE';  # need to eval this because otherwise <<>> is a syntax error on older Perls
 			push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <<>>;
