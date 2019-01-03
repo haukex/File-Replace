@@ -54,7 +54,7 @@ subtest 'basic test' => sub { plan tests=>7;
 	is slurp($fn), "World!", 'after finish';
 };
 
-subtest 'debug' => sub { plan tests=>5;
+subtest 'debug' => sub { plan tests=>6;
 	note "Expect some debug output here:";
 	my $db = Test::More->builder->output;
 	ok( File::Replace->new(newtempfn, debug=>$db)->finish, 'debug' );
@@ -67,6 +67,8 @@ subtest 'debug' => sub { plan tests=>5;
 		ok( !$repl1->cancel, 'debug cancel fail' );
 		local *STDERR = $db;
 		my $repl2 = File::Replace->new(newtempfn, debug=>1);
+		like exception { $repl2->_debug() },
+			qr/\bnot enough arguments\b/i, 'not enough args to _debug';
 		$repl2 = undef;
 		1; # don't return anything from this block
 	}, 'captured at least two warnings';

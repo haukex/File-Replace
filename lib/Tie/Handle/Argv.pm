@@ -3,7 +3,6 @@ package Tie::Handle::Argv;
 use warnings;
 use strict;
 use Carp;
-use warnings::register;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
@@ -18,8 +17,8 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak $class."::tie/new: bad number of arguments" if @_%2;
 	my %args = @_;
-	$TIEHANDLE_KNOWN_ARGS{$_} or croak $class."::tie/new: unknown argument '$_'"
-		for keys %args;
+	for (keys %args) { croak "$class->tie/new: unknown argument '$_'"
+		unless $TIEHANDLE_KNOWN_ARGS{$_} }
 	my $self = $class->SUPER::TIEHANDLE();
 	$self->{_lineno} = undef; # also keeps state: undef = not currently active, defined = active
 	$self->{_debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
@@ -28,10 +27,10 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 
 sub _debug {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
-	return unless $self->{_debug};
+	return 1 unless $self->{_debug};
 	confess "not enough arguments to _debug" unless @_;
-	print {$self->{_debug}} ref($self), " DEBUG: ", @_ ,"\n";
-	return;
+	local ($",$,,$\) = (' ');
+	return print {$self->{_debug}} ref($self), " DEBUG: ", @_ ,"\n";
 }
 
 sub inner_close {
@@ -58,9 +57,11 @@ sub init_empty_argv {
 }
 sub advance_argv {
 	my $self = shift;
+	#TODO: allow passing this class an arrayref to replace @ARGV (and scalar ref for $ARGV)
 	$ARGV = shift @ARGV;  ## no critic (RequireLocalizedPunctuationVars)
 	return;
 }
+sub sequence_end {}
 sub _advance {
 	my $self = shift;
 	my $peek = shift;
@@ -76,6 +77,7 @@ sub _advance {
 		if (!@ARGV) {
 			$self->_debug("\@ARGV is now empty, closing and done (\$.=$.)");
 			$self->{_lineno} = undef unless $peek;
+			$self->sequence_end;
 			return;
 		} # else
 		$self->advance_argv;
@@ -158,7 +160,7 @@ __END__
 
 =head1 Name
 
-Tie::Handle::Argv - A base class for tying ARGV
+Tie::Handle::Argv - A base class for tying Perl's magic ARGV handle
 
 =head1 Synopsis
 
@@ -227,7 +229,7 @@ Override this if you want to intercept a call to
 L<Tie::Handle::Base|Tie::Handle::Base>'s C<READLINE> method.
 Will only ever be called in scalar context and therefore should read
 one line (as with Perl's C<readline>, the definition of "line" varies
-depending on the input record separator C<$/>).
+depending on the current setting of the input record separator C<$/>).
 Takes no arguments and should always return a scalar.
 
 =item C<init_empty_argv>
@@ -250,8 +252,14 @@ Takes no arguments and should return nothing ("C<return;>").
 =item C<OPEN>
 
 You may override this method to modify its behavior. Make sure you understand
-its arguments and expected behavior - see C<OPEN> in L<Tie::Handle::Base>
+its arguments and expected behavior - see L<Tie::Handle::Base/OPEN>
 and L<perltie>.
+
+=item C<sequence_end>
+
+Override this if you want to take action after the last file in C<@ARGV>
+has been closed.
+Takes no arguments and should return nothing ("C<return;>").
 
 =item Other methods: C<TIEHANDLE>, C<UNTIE>, C<DESTROY>
 
@@ -289,13 +297,43 @@ C<eof> on tied handles. See L<perl5160delta/Filehandle, last-accessed>.
 It is therefore B<strongly recommended> to use this module on Perl 5.16
 and up. On older versions, be aware of the aforementioned issues.
 
+=head2 Caveats and Known Differences to Perl's C<< <> >>
+
+=over
+
+=item *
+
+Perl's C<tie> mechanism currently does not allow a tied C<ARGV> to
+distinguish between a regular C<< <> >> operator and the newer double-diamond
+C<<< <<>> >>> operator (introduced in Perl 5.22), which uses the three-argument
+C<open>. When using this module, C<<< <<>> >>> will currently act the same
+as C<< <> >>.
+
+If a newer version of Perl is released which allows for tied filehandles
+to make use of C<<< <<>> >>>, this module can be updated correspondingly.
+(At the time of writing, all released versions of Perl, up to and including
+5.28, do not support special treatment of C<<< <<>> >>> on tied filehandles.)
+
+Note: On the other hand, this class can be used to change C<< <> >> to
+work like C<<< <<>> >>> even on older Perls, for instance:
+
+ package Tie::Handle::ThreeArgOpenArgv;
+ use parent 'Tie::Handle::Argv';
+ sub OPEN {
+     my $self = shift;
+     return $self->SUPER::OPEN('<',shift);
+ }
+
+=back
+
 =head2 Debugging
 
 This class contains a C<_debug> method that may be called by subclasses
 to provide debug output (when enabled). C<TIEHANDLE> takes an argument
 C<debug => $debug>, where C<$debug> is either a scalar with a true value,
-in which case debugging messages will be sent to C<STDERR>, or a filehandle,
-in which case debugging messages will be sent to that filehandle.
+in which case debugging messages will be sent to C<STDERR>, or a reference
+to a filehandle, in which case debugging messages will be sent to that
+filehandle.
 
 =head1 Author, Copyright, and License
 

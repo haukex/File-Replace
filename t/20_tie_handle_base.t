@@ -31,7 +31,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>54;
+use Test::More tests=>55;
 
 use Encode qw/encode/;
 
@@ -166,6 +166,33 @@ subtest 'return values' => sub {
 	# for completeness, confirm what close returns
 	is_deeply [close $ofh], [!1], 'close orig fail';
 	is_deeply [close $tfh], [close $ofh], 'close fail matches';
+};
+
+subtest 'open_parse' => sub {
+	my @tests = ( # various examples from perldoc -f open
+		[' < input.txt ', "<", "input.txt"],
+		[' > output.txt ', ">", "output.txt"],
+		[' >> /usr/spool/news/twitlog ', ">>", "/usr/spool/news/twitlog"],
+		["+<dbase.mine", "+<", "dbase.mine"],
+		["caesar <\$article |", "-|", "caesar <\$article"],
+		[">&STDOUT", ">&", 'STDOUT'],
+		["<&=\$fd", "<&=", "\$fd"],
+		[">>&=\$B", '>>&=', "\$B"],
+		["|tr '[a-z]' '[A-Z]'", "|-", "tr '[a-z]' '[A-Z]'"],
+		["cat -n '\$file'|", "-|", "cat -n '\$file'"],
+		["rsh cat file |", '-|', 'rsh cat file'],
+		[" foo ", "<", "foo"],
+	);
+	plan tests => 3+@tests;
+	for my $i (0..$#tests) {
+		my $in = shift @{$tests[$i]};
+		is_deeply [Tie::Handle::Base::open_parse($in)], $tests[$i], "'$in'";
+	}
+	is grep({/\btoo many arguments to open_parse\b/} warns {
+		is_deeply [Tie::Handle::Base::open_parse(' x ',' y ',' z ')], [' x ',' y '], 'passthru';
+	}), 1, 'warns about too many args';
+	like exception { Tie::Handle::Base::open_parse() },
+		qr/\bnot enough arguments to open_parse\b/i, 'not enough args';
 };
 
 {
