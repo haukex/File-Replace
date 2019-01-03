@@ -1,6 +1,10 @@
 Revision history for Perl extension File::Replace.
 
-0.10	Thu, Jan  3 2019
+0.12	Thu, Jan  3 2019
+	- Missed a few version number bumps in previous release,
+	  no other changes
+
+0.10	Thu, Jan  3 2019	commit 3e1730e0a4f18a46a38f374400ca30ad1c9502d5
 	- Added File::Replace::Inplace
 	- Added Tie::Handle::Argv
 	- Added "backup" option
