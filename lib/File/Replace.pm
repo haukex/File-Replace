@@ -521,7 +521,7 @@ output, as in:
 
  perl -MFile::Replace=-i,-D -pe 's/x/y/g' foo.txt bar.txt
 
-This switch currently only affects the "inplace" operations described here,
+The C<-D> switch currently only affects the "inplace" operations described here,
 but this may be expanded upon in the future to enable debugging everywhere.
 
 =head1 Constructor Options

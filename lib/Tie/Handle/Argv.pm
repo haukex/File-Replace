@@ -57,6 +57,7 @@ sub init_empty_argv {
 }
 sub advance_argv {
 	my $self = shift;
+	#TODO: allow passing this class an arrayref to replace @ARGV (and scalar ref for $ARGV)
 	$ARGV = shift @ARGV;  ## no critic (RequireLocalizedPunctuationVars)
 	return;
 }
@@ -228,7 +229,7 @@ Override this if you want to intercept a call to
 L<Tie::Handle::Base|Tie::Handle::Base>'s C<READLINE> method.
 Will only ever be called in scalar context and therefore should read
 one line (as with Perl's C<readline>, the definition of "line" varies
-depending on the input record separator C<$/>).
+depending on the current setting of the input record separator C<$/>).
 Takes no arguments and should always return a scalar.
 
 =item C<init_empty_argv>
@@ -251,7 +252,7 @@ Takes no arguments and should return nothing ("C<return;>").
 =item C<OPEN>
 
 You may override this method to modify its behavior. Make sure you understand
-its arguments and expected behavior - see C<OPEN> in L<Tie::Handle::Base>
+its arguments and expected behavior - see L<Tie::Handle::Base/OPEN>
 and L<perltie>.
 
 =item C<sequence_end>
@@ -320,7 +321,7 @@ work like C<<< <<>> >>> even on older Perls, for instance:
  use parent 'Tie::Handle::Argv';
  sub OPEN {
      my $self = shift;
-     return $self->SUPER::OPEN('<',@_);
+     return $self->SUPER::OPEN('<',shift);
  }
 
 =back
@@ -330,8 +331,9 @@ work like C<<< <<>> >>> even on older Perls, for instance:
 This class contains a C<_debug> method that may be called by subclasses
 to provide debug output (when enabled). C<TIEHANDLE> takes an argument
 C<debug => $debug>, where C<$debug> is either a scalar with a true value,
-in which case debugging messages will be sent to C<STDERR>, or a filehandle,
-in which case debugging messages will be sent to that filehandle.
+in which case debugging messages will be sent to C<STDERR>, or a reference
+to a filehandle, in which case debugging messages will be sent to that
+filehandle.
 
 =head1 Author, Copyright, and License
 

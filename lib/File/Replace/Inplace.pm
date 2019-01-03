@@ -123,11 +123,48 @@ Tie::Handle::Inplace - Emulation of Perl's C<-i> switch via L<File::Replace|File
 
 =head1 Synopsis
 
- TODO Doc: Synopsis
+=for comment
+REMEMBER to keep these examples in sync with 91_author_pod.t
+
+ use File::Replace qw/inplace/;
+ {
+     my $inpl = inplace( backup=>'.bak' );
+     local @ARGV = ("file1.txt", "file2.txt");
+     while (<>) {
+         chomp;
+         s/[aeiou]/_/gi;
+         print $_, "\n";
+     }
+ }
+
+Same thing, but from the command line:
+
+ perl -MFile::Replace=-i.bak -ple 's/[aeiou]/_/gi' file1.txt file2.txt
 
 =head1 Description
 
-TODO Doc: Description
+This module provides a mechanism to replace Perl's in-place file editing
+(see the C<-i> switch in L<perlrun>) with in-place editing via
+L<File::Replace|File::Replace>. It does so by using
+L<Tie::Handle::Argv|Tie::Handle::Argv> to preserve as much of the
+behavior of Perl's magic C<< <> >> operator and C<-i> switch as possible.
+
+When you create an object of the class C<File::Replace::Inplace>, either
+by C<< File::Replace::Inplace->new() >> or via C<inplace()> from
+L<File::Replace|File::Replace> (the two are identical), it acts as a
+scope guard: C<ARGV> is tied when the object is created, and C<ARGV>
+is untied when the object goes out of scope (except if you tie C<ARGV>
+to another class in the meantime). You can pass the aforementioned
+constructors the same arguments as L<File::Replace|File::Replace> (with
+the exception of C<in_fh>).
+
+Once C<ARGV> is tied, you can use C<< <> >> as you normally would, and
+the files in C<@ARGV> will be edited in-place using
+L<File::Replace|File::Replace>, for an example see the L</Synopsis>.
+
+See also L<File::Replace/inplace> for a description of the C<-i> argument
+to L<File::Replace|File::Replace>, which can be used for oneliners as
+shown in the L</Synopsis>.
 
 This documentation describes version 0.09 of this module.
 B<This is a development version.>
