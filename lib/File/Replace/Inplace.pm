@@ -198,15 +198,19 @@ would be C<if (eof) { close ARGV; close select; }>.)
 
 =back
 
-=head2 Warning About Perls Older Than v5.16
+=head2 Warning About Perls Older Than v5.16 and Windows
 
-Please see L<Tie::Handle::Argv/Warning About Perls Older Than v5.16>.
+Please see L<Tie::Handle::Argv/Warning About Perls Older Than v5.16 and Windows>.
 In addition, there is a known issue that C<eof> may return unexpected
 values on Perls older than 5.12 when reading from C<STDIN> via a
 tied C<ARGV>.
 
 It is B<strongly recommended> to use this module on Perl 5.16 and up.
 On older versions, be aware of the aforementioned issues.
+
+In addition, this module's tests are currently B<not> run on Windows on
+Perl versions older than 5.28. Therefore, correct operation of this module
+can currently not be guaranteed on Windows on Perls 5.26 and older.
 
 =head1 Author, Copyright, and License
 

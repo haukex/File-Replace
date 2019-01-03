@@ -285,7 +285,7 @@ C<CLOSE>, then make sure you call the appropriate method in this class.
 This documentation describes version 0.09 of this module.
 B<This is a development version.>
 
-=head2 Warning About Perls Older Than v5.16
+=head2 Warning About Perls Older Than v5.16 and Windows
 
 Perl versions before 5.12 did not support C<eof()> (with an empty parameter
 list) on tied handles. See also L<perltie/Tying FileHandles>
@@ -296,6 +296,11 @@ C<eof> on tied handles. See L<perl5160delta/Filehandle, last-accessed>.
 
 It is therefore B<strongly recommended> to use this module on Perl 5.16
 and up. On older versions, be aware of the aforementioned issues.
+
+In addition, there are some slight behaviorial differences on Windows
+up to and including Perl 5.16, and not all features of this module can
+currently be tested on Windows, in particular in regards to opening anything
+other than regular files, such as C<STDIN> via the special filename F<->.
 
 =head2 Caveats and Known Differences to Perl's C<< <> >>
 
