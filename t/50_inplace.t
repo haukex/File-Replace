@@ -33,7 +33,7 @@ use FindBin ();
 use lib $FindBin::Bin;
 use File_Replace_Testlib;
 
-use Test::More tests=>30;
+use Test::More tests=>32;
 
 use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
@@ -139,11 +139,12 @@ testboth 'basic test with eof()' => sub {
 	], 'states' or diag explain \@states;
 };
 
-subtest 'basic test with inplace()' => sub { plan tests=>11;
+subtest 'basic test with inplace()' => sub { plan tests=>12;
 	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my @tf = (newtempfn("X\nY\nZ"), newtempfn("AA\nBB\nCC\n"));
 	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
 	my $inpl = inplace();
+	isa_ok $inpl, 'File::Replace::Inplace';
 	my @states;
 	is select(), 'main::STDOUT', 'STDOUT is selected initially';
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
@@ -386,7 +387,6 @@ testboth 'nonexistent and empty files' => sub { plan tests=>17;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
 	is slurp($tf[$_]), "", 'file '.($_+1).' correct' for 0,1,3,5,6;
 	# NOTE: difference to Perl's -i - File::Replace will create the files
-	#TODO Later: Also test different File::Replace create settings?
 	if ($TESTMODE eq 'Perl')
 		{ ok !-e $tf[$_],  "file ".($_+1)." doesn't exist" for 2,4 }
 	else
@@ -401,6 +401,56 @@ testboth 'nonexistent and empty files' => sub { plan tests=>17;
 		[[],          $tf[6], !!0, !!0, 3,     !!1            ],
 	], 'states' or diag explain \@states;
 	is $warncount, $TESTMODE eq 'Perl' ? 4 : 0, 'warning count';
+};
+
+subtest 'create option' => sub { plan tests=>9;
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
+	{
+		my @tf = (newtempfn("Hi"), newtempfn, newtempfn("There"));
+		ok !-e $tf[1], 'file doesn\'t exist yet';
+		@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+		my $inpl = File::Replace::Inplace->new( create=>'now' );
+		is <>, "Hi", 'file 1 read ok';
+		print "Bingo1";
+		is <>, "There", 'file 3 read ok';
+		is slurp($tf[0]), "Bingo1", 'file 1 contents ok';
+		print "Bingo2";
+		is slurp($tf[1]), "", 'file created ok';
+		is <>, undef, 'finished reading ok';
+		is slurp($tf[2]), "Bingo2", 'file 3 contents ok';
+	}
+	{
+		my $tfn = newtempfn;
+		ok !-e $tfn, 'file doesn\'t exist';
+		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
+		my $inpl = File::Replace::Inplace->new( create=>'off' );
+		like exception { <>; 1 }, qr/\bfailed to open '\Q$tfn\E'/, 'read dies ok';
+	}
+};
+
+subtest 'premature destroy' => sub { plan tests=>7;
+	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
+	local $CE = $] lt '5.012';
+	is grep( {/\bunclosed file\b.+\bnot replaced\b/i} warns {
+		my $tfn = newtempfn("IJK\nMNO");
+		@ARGV = ($tfn);  ## no critic (RequireLocalizedPunctuationVars)
+		my @states;
+		my $inpl = inplace();
+		is select(), 'main::STDOUT', 'STDOUT is selected initially';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+		is <>, "IJK\n", 'read ok';
+		isnt select(), 'main::STDOUT', 'STDOUT isn\'t selected after read';
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+		$inpl = undef;
+		push @states, [[@ARGV], $ARGV, defined(fileno ARGV), defined(fileno ARGVOUT), $., eof];
+		is select(), 'main::STDOUT', 'STDOUT is selected again';
+		is slurp($tfn), "IJK\nMNO", 'file contents';
+		is_deeply \@states, [
+			[[$tfn], undef, !!0, !!0, undef, $FE        ],
+			[[],     $tfn,  !!1, !!1, 1,     !!0        ],
+			[[],     $tfn,  !!0, !!0, 1,     $CE?!!1:!!0],
+		], 'states' or diag explain \@states;
+	} ), 1, 'warning about unclosed file';
 };
 
 testboth 'premature close' => sub { plan tests=>9;

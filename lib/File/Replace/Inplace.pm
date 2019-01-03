@@ -101,12 +101,14 @@ sub DESTROY { return shift->cleanup }
 	
 	sub UNTIE {
 		my $self = shift;
+		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
 		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
 		return $self->SUPER::UNTIE(@_);
 	}
 	
 	sub DESTROY {
 		my $self = shift;
+		select(STDOUT);  ## no critic (ProhibitOneArgSelect)
 		# File::Replace destructor will warn on unclosed file
 		delete $self->{$_} for grep {!/^_[^_]/} keys %$self;
 		return $self->SUPER::DESTROY(@_);
