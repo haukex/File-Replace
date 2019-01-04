@@ -375,7 +375,7 @@ work like C<<< <<>> >>> even on older Perls, for instance:
 
 This class contains a C<_debug> method that may be called by subclasses
 to provide debug output (when enabled). C<TIEHANDLE> takes an argument
-C<debug => $debug>, where C<$debug> is either a scalar with a true value,
+C<< debug => $debug >>, where C<$debug> is either a scalar with a true value,
 in which case debugging messages will be sent to C<STDERR>, or a reference
 to a filehandle, in which case debugging messages will be sent to that
 filehandle.
