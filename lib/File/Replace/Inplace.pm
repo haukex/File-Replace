@@ -6,7 +6,7 @@ use Carp;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 our @CARP_NOT = qw/ File::Replace /;
 
@@ -177,8 +177,7 @@ See also L<File::Replace/inplace> for a description of the C<-i> argument
 to L<File::Replace|File::Replace>, which can be used for oneliners as
 shown in the L</Synopsis>.
 
-This documentation describes version 0.13 of this module.
-B<This is a development version.>
+This documentation describes version 0.14 of this module.
 
 =head2 Differences to Perl's C<-i>
 
