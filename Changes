@@ -1,6 +1,9 @@
 Revision history for Perl extension File::Replace.
 
-0.14	Sun, Mar 24 2019
+0.16	not yet released
+	- ...
+
+0.14	Sun, Mar 24 2019	commit 28a92079a5d3018157b07b0e394810aee1181bf3
 	- Minor fixes to tests and docs
 
 0.12	Thu, Jan  3 2019	commit 8cac0deb8d266e55c398378bfe46c819ef4ae4ea

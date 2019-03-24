@@ -6,7 +6,7 @@ use Carp;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 require Tie::Handle::Base;
 our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
@@ -322,7 +322,8 @@ and for L<Tie::Handle::Base|Tie::Handle::Base>.
 
 =back
 
-This documentation describes version 0.14 of this module.
+This documentation describes version 0.15 of this module.
+B<This is a development version.>
 
 =head2 Warning About Perls Older Than v5.16 and Windows
 
