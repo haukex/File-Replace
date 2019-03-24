@@ -38,7 +38,7 @@ use File::Temp qw/tempdir/;
 
 use warnings FATAL => qw/ io inplace /;
 our $DEBUG = 0;
-our $FE = $] ge '5.012' && $] lt '5.030' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
+our $FE = $] ge '5.012' && $] lt '5.029007' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
 #TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
