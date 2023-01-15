@@ -64,7 +64,7 @@ BEGIN {
 }
 
 use Test::More $AUTHOR_TESTS ? (tests=>2*@PERLFILES)
-	: (skip_all=>'author Perl::Critic tests (set $ENV{FILE_REPLACE_AUTHOR_TESTS} to enable)');
+	: (skip_all=>'author Perl::Critic tests (set $ENV{TIE_HANDLE_BASE_AUTHOR_TESTS} to enable)');
 
 use Test::Perl::Critic -profile=>catfile($FindBin::Bin,'perlcriticrc');
 use Test::MinimumVersion;

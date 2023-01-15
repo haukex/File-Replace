@@ -38,13 +38,12 @@ BEGIN {
 }
 our @EXPORT = qw/ $AUTHOR_TESTS $TEMPDIR newtempfn slurp warns exception /;  ## no critic (ProhibitAutomaticExportation)
 
-our $AUTHOR_TESTS = ! ! $ENV{FILE_REPLACE_AUTHOR_TESTS};
+our $AUTHOR_TESTS = ! ! $ENV{TIE_HANDLE_BASE_AUTHOR_TESTS};
 
 sub import {  ## no critic (RequireArgUnpacking)
 	warnings->import(FATAL=>'all') if $AUTHOR_TESTS;
 	require Carp::Always if $AUTHOR_TESTS;
 	__PACKAGE__->export_to_level(1, @_);
-	$File::Replace::DISABLE_CHMOD = 1 unless chmod(oct('640'), newtempfn(""));
 	return;
 }
 
@@ -53,7 +52,7 @@ use File::Temp qw/tempdir tempfile/;
 # newtempfn() - return a nonexistent filename (small chance for a race condition)
 # newtempfn("content") - writes that content to the file (file will exist)
 # newtempfn("content","layers") - does binmode with those layers then writes the content
-our $TEMPDIR = tempdir("FileReplaceTests_XXXXXXXXXX", TMPDIR=>1, CLEANUP=>1);
+our $TEMPDIR = tempdir("TieHandleBaseTests_XXXXXXXXXX", TMPDIR=>1, CLEANUP=>1);
 sub newtempfn {
 	my ($fh,$fn) = tempfile(DIR=>$TEMPDIR,UNLINK=>1);
 	if (@_) {
