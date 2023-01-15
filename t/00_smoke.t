@@ -8,7 +8,7 @@ Tests for the Perl module Tie::Handle::Base.
 
 =head1 Author, Copyright, and License
 
-Copyright (c) 2017 Hauke Daempfling (haukex@zero-g.net)
+Copyright (c) 2017-2023 Hauke Daempfling (haukex@zero-g.net)
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, L<http://www.igb-berlin.de/>
 
@@ -44,7 +44,7 @@ BEGIN {
 	use_ok('Tie::Handle::Base')
 		or BAIL_OUT("failed to use Tie::Handle::Base");
 }
-is $Tie::Handle::Base::VERSION, '0.15', 'Tie::Handle::Base version matches tests';
+is $Tie::Handle::Base::VERSION, '0.16', 'Tie::Handle::Base version matches tests';
 
 if (my $cnt = grep {!$_} Test::More->builder->summary)
 	{ BAIL_OUT("$cnt smoke tests failed") }

@@ -13,7 +13,7 @@ WriteMakefile(
 		provides     => {
 			'Tie::Handle::Base' => {
 				file    => 'lib/Tie/Handle/Base.pm',
-				version => '0.15',
+				version => '0.16',
 			},
 		},
 		resources    => {
