@@ -1,44 +1,5 @@
-Revision history for Perl extension File::Replace.
+Revision history for Perl extension Tie::Handle::Base.
 
 0.16	not yet released
-	- ...
-
-0.14	Sun, Mar 24 2019	commit 28a92079a5d3018157b07b0e394810aee1181bf3
-	- Minor fixes to tests and docs
-
-0.12	Thu, Jan  3 2019	commit 8cac0deb8d266e55c398378bfe46c819ef4ae4ea
-	- Missed a few version number bumps in previous release,
-	  no other changes
-
-0.10	Thu, Jan  3 2019	commit 3e1730e0a4f18a46a38f374400ca30ad1c9502d5
-	- Added File::Replace::Inplace
-	- Added Tie::Handle::Argv
-	- Added "backup" option
-	- Added Tie::Handle::Base::open_parse()
-
-0.08	Sat, Feb 10 2018	commit 9a76235bdcbde3cd90633c2808857b2bcffa627d
-	- REMOVED the deprecated "devnull" option and "create" values
-	- Added "replace3" convenience constructor
-	- Added "copy" method
-	- Now this module depends only on core modules
-	- Various smaller documentation updates
-
-0.06	Sat, Sep 30 2017	commit d4264a671eb6539b245a1a1e52e2498e4a7dfa3d
-	- DEPRECATED "devnull" option (merged into "create" option)
-	- DEPRECATED previous "create" option values
-	- added "in_fh" option
-	- improved Tie::Handle::Base subclassing
-	- made return values of tied methods more consistent with Perl's
-	- various other minor changes, fixes, and improvements
-	- major doc. updates, especially Tie::Handle::Base
-	- removed "alpha version" notice
-	- fixed a test failure on cygwin, made tests a bit more robust
-
-0.04	Sun, Sep 17 2017	commit 91cb26d0dba90b00d37ffafae211ed089f8d04fd
-	- updated minimum Perl version to 5.8.1 (was 5.8.0)
-	- fixed various compatibility issues in Perls 5.8.1 thru 5.24
-	- no feature or documentation changes
-
-0.02	Sat, Sep 16 2017	commit 86f91ad496fc36d683e0464460004d9c3decf1a9
-	- first public release
+	- forked from File::Replace
 

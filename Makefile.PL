@@ -2,47 +2,29 @@
 use ExtUtils::MakeMaker 6.52;  # need >=6.52 for CONFIGURE_REQUIRES
 # and in CONFIGURE_REQUIRES, we require >=6.64 for TEST_REQUIRES
 WriteMakefile(
-	NAME           => 'File::Replace',
+	NAME           => 'Tie::Handle::Base',
 	AUTHOR         => 'Hauke D <haukex@zero-g.net>',
 	LICENSE        => 'gpl_3',
-	VERSION_FROM   => 'lib/File/Replace.pm', # finds $VERSION
-	ABSTRACT_FROM  => 'lib/File/Replace.pm',
+	VERSION_FROM   => 'lib/Tie/Handle/Base.pm', # finds $VERSION
+	ABSTRACT_FROM  => 'lib/Tie/Handle/Base.pm',
 	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {
 		'meta-spec'  => { version => 2 },
 		provides     => {
-			'File::Replace' => {
-				file    => 'lib/File/Replace.pm',
-				version => '0.15',
-			},
-			'File::Replace::Inplace' => {
-				file    => 'lib/File/Replace/Inplace.pm',
-				version => '0.15',
-			},
 			'Tie::Handle::Base' => {
 				file    => 'lib/Tie/Handle/Base.pm',
 				version => '0.15',
 			},
-			'Tie::Handle::Argv' => {
-				file    => 'lib/Tie/Handle/Argv.pm',
-				version => '0.15',
-			},
-		},
-		no_index     => {
-			file      => [
-					'lib/File/Replace/DualHandle.pm',
-					'lib/File/Replace/SingleHandle.pm',
-				],
 		},
 		resources    => {
-			homepage    => 'https://bitbucket.org/haukex/file-replace',
+			homepage    => 'https://bitbucket.org/haukex/tie-handle-base',
 			repository  => {
 				type       => 'git',
-				url        => 'https://bitbucket.org/haukex/file-replace.git',
-				web        => 'https://bitbucket.org/haukex/file-replace',
+				url        => 'https://bitbucket.org/haukex/tie-handle-base.git',
+				web        => 'https://bitbucket.org/haukex/tie-handle-base',
 			},
 			bugtracker  => {
-				web        => 'https://bitbucket.org/haukex/file-replace/issues',
+				web        => 'https://bitbucket.org/haukex/tie-handle-base/issues',
 				#mailto     => '',
 			},
 		},

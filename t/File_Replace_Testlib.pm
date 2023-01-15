@@ -1,5 +1,5 @@
 #!perl
-package File_Replace_Testlib;
+package File_Replace_Testlib;  #TODO: rename
 use warnings;
 use strict;
 use 5.008_001;
@@ -7,7 +7,7 @@ use Carp;
 
 =head1 Synopsis
 
-Test support library for the Perl module File::Replace.
+Test support library for the Perl module Tie::Handle::Base.
 
 =head1 Author, Copyright, and License
 
@@ -36,7 +36,7 @@ BEGIN {
 	require Exporter;
 	our @ISA = qw/ Exporter /;  ## no critic (ProhibitExplicitISA)
 }
-our @EXPORT = qw/ $AUTHOR_TESTS $TEMPDIR newtempfn slurp spew warns exception /;  ## no critic (ProhibitAutomaticExportation)
+our @EXPORT = qw/ $AUTHOR_TESTS $TEMPDIR newtempfn slurp warns exception /;  ## no critic (ProhibitAutomaticExportation)
 
 our $AUTHOR_TESTS = ! ! $ENV{FILE_REPLACE_AUTHOR_TESTS};
 
@@ -81,15 +81,6 @@ sub slurp {
 	return $x;
 }
 
-sub spew {
-	my ($fn,$content,$layers) = @_;
-	$layers = '' unless defined $layers;
-	open my $fh, ">$layers", $fn or croak "open $fn: $!";
-	print $fh $content or croak "print $fn: $!";
-	close $fh or croak "close $fn: $!";
-	return $fn;
-}
-
 #use Test::Fatal 'exception';
 # We really only use "exception" for really simple cases, so let's
 # use this cheapo replacement so we can depend only on core modules!
@@ -109,109 +100,11 @@ sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 ## no critic (ProhibitMultiplePackages, RequireCarping)
 
 {
-	package Tie::Handle::Unclosable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# just force close to return a false value, since
-	# apparently we can't mock close via "local *CORE::close = sub ...",
-	# (and we didn't have CORE:: before 5.16 anyway)
-	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
-	sub install {
-		my ($class,$repl,$which) = @_;
-		die $which unless $which eq 'ifh' || $which eq 'ofh';
-		if (ref $repl eq 'GLOB' && tied(*$repl)) {
-			   if (ref tied(*$repl) eq 'File::Replace::SingleHandle')
-				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
-			elsif (ref tied(*$repl) eq 'File::Replace::DualHandle' && $which eq 'ifh')
-				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
-			$repl = tied(*$repl)->replace;
-		}
-		$repl->isa('File::Replace') or die ref $repl;
-		$repl->{$which} = $class->new($repl->{$which});
-		return $repl;
-	}
-}
-{
 	package Tie::Handle::Unprintable;
 	require Tie::Handle::Base;
 	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
 	# we can't mock CORE::print, but we can use a tied handle to cause it to return false
 	sub WRITE { return undef }  ## no critic (ProhibitExplicitReturnUndef)
-}
-{
-	package Tie::Handle::Unreadable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub READ { return undef }  ## no critic (ProhibitExplicitReturnUndef)
-}
-{
-	package Tie::Handle::FakeFileno;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub FILENO { return -1 }
-	sub CLOSE { return 1 }
-}
-{
-	package Tie::Handle::MockBinmode;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
-	sub new {  ## no critic (RequireArgUnpacking)
-		my $class = shift;
-		my $fh = $class->SUPER::new(shift);
-		tied(*$fh)->{mocks} = [@_];
-		return $fh;
-	}
-	sub BINMODE {
-		my $self = shift;
-		die "no more mocks left" unless @{ $self->{mocks} };
-		return shift @{ $self->{mocks} };
-	}
-	sub endmock {
-		my $self = shift;
-		return if @{ $self->{mocks} };
-		return 1;
-	}
-}
-{
-	package Tie::Handle::NeverEof;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub EOF { return !!0 }
-}
-{
-	package OverrideStdin;
-	# This overrides STDIN with a file, using the same code that
-	# IPC::Run3 uses, which seems to work well. Cleanup is performed
-	# on object destruction.
-	use Carp;
-	use File::Temp qw/tempfile/;
-	use POSIX qw/dup dup2/;
-	our $DEBUG;
-	BEGIN { $DEBUG = 0 }
-	sub new {
-		my $class = shift;
-		croak "$class->new: bad nr of args" unless @_==1;
-		my $string = shift;
-		my $fh = tempfile();
-		print $fh $string;
-		seek $fh, 0, 0 or die "seek: $!";
-		$DEBUG and print STDERR "Overriding STDIN\n";
-		my $saved_fd0 = dup( 0 ) or die "dup(0): $!";
-		dup2( fileno $fh, 0 ) or die "save dup2: $!";
-		return bless \$saved_fd0, $class;
-	}
-	sub restore {
-		my $self = shift;
-		my $saved_fd0 = $$self;
-		return unless defined $saved_fd0;
-		$DEBUG and print STDERR "Restoring STDIN\n";
-		dup2( $saved_fd0, 0 ) or die "restore dup2: $!";
-		POSIX::close( $saved_fd0 ) or die "close saved: $!";
-		$$self = undef;
-		return 1;
-	}
-	sub DESTROY { return shift->restore }
 }
 
 1;
