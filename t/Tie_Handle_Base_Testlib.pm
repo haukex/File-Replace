@@ -1,5 +1,5 @@
 #!perl
-package File_Replace_Testlib;  #TODO: rename
+package Tie_Handle_Base_Testlib;
 use warnings;
 use strict;
 use 5.008_001;

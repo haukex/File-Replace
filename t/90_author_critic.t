@@ -50,7 +50,7 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 use FindBin ();
 use lib $FindBin::Bin;
-use File_Replace_Testlib;
+use Tie_Handle_Base_Testlib;
 
 use File::Spec::Functions qw/catfile catdir abs2rel/;
 use File::Glob 'bsd_glob';

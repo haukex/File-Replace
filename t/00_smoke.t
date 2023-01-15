@@ -36,7 +36,7 @@ BEGIN {
 
 use FindBin ();
 use lib $FindBin::Bin;
-use File_Replace_Testlib;
+use Tie_Handle_Base_Testlib;
 
 ## no critic (RequireCarping)
 
