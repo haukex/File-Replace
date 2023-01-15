@@ -1,21 +1,17 @@
-File-Replace
-============
+File-Replace-Fancy
+==================
 
 This is the distribution of the Perl module
-[`File::Replace`](https://metacpan.org/pod/File::Replace).
+[`File::Replace::Fancy`](https://metacpan.org/pod/File::Replace::Fancy).
 
-It is a Perl extension for replacing files by renaming a temp file
-over the original.
+It is a Perl extension providing a fancier interface to `File::Replace`.
 
 Please see the module's documentation (POD) for details (try the command
-`perldoc lib/File/Replace.pm`) and the file `Changes` for version
+`perldoc lib/File/Replace/Fancy.pm`) and the file `Changes` for version
 information.
 
-[![Travis CI Build Status](https://travis-ci.org/haukex/File-Replace.svg)](https://travis-ci.org/haukex/File-Replace)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/haukex/File-Replace?svg=true)](https://ci.appveyor.com/project/haukex/file-replace)
-[![Coverage Status](https://coveralls.io/repos/github/haukex/File-Replace/badge.svg)](https://coveralls.io/github/haukex/File-Replace)
-[![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
-[![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
+[![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace-Fancy.svg)](https://cpants.cpanauthors.org/dist/File-Replace-Fancy)
+[![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace-Fancy.svg)](http://matrix.cpantesters.org/?dist=File-Replace-Fancy)
 
 Installation
 ------------
@@ -43,7 +39,7 @@ This module should work on any platform supported by these modules.
 Author, Copyright and License
 -----------------------------
 
-Copyright (c) 2017 Hauke Daempfling <haukex@zero-g.net>
+Copyright (c) 2017-2023 Hauke Daempfling <haukex@zero-g.net>
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, <http://www.igb-berlin.de/>
 
