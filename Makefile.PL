@@ -13,26 +13,8 @@ WriteMakefile(
 		provides     => {
 			'File::Replace' => {
 				file    => 'lib/File/Replace.pm',
-				version => '0.15',
+				version => '0.16',
 			},
-			'File::Replace::Inplace' => {
-				file    => 'lib/File/Replace/Inplace.pm',
-				version => '0.15',
-			},
-			'Tie::Handle::Base' => {
-				file    => 'lib/Tie/Handle/Base.pm',
-				version => '0.15',
-			},
-			'Tie::Handle::Argv' => {
-				file    => 'lib/Tie/Handle/Argv.pm',
-				version => '0.15',
-			},
-		},
-		no_index     => {
-			file      => [
-					'lib/File/Replace/DualHandle.pm',
-					'lib/File/Replace/SingleHandle.pm',
-				],
 		},
 		resources    => {
 			homepage    => 'https://bitbucket.org/haukex/file-replace',
