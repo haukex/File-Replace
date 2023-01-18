@@ -30,19 +30,10 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 =cut
 
-BEGIN {
-	# "parent" pragma wasn't core until 5.10.1, so just do it ourselves
-	# instead of using "base".
-	require Exporter;
-	our @ISA = qw/ Exporter /;  ## no critic (ProhibitExplicitISA)
-}
-our @EXPORT = qw/ $AUTHOR_TESTS $TEMPDIR newtempfn slurp spew warns exception /;  ## no critic (ProhibitAutomaticExportation)
-
-our $AUTHOR_TESTS = ! ! $ENV{FILE_REPLACE_AUTHOR_TESTS};
+use parent 'Exporter';
+our @EXPORT = qw/ newtempfn /;  ## no critic (ProhibitAutomaticExportation)
 
 sub import {  ## no critic (RequireArgUnpacking)
-	warnings->import(FATAL=>'all') if $AUTHOR_TESTS;
-	require Carp::Always if $AUTHOR_TESTS;
 	__PACKAGE__->export_to_level(1, @_);
 	$File::Replace::DISABLE_CHMOD = 1 unless chmod(oct('640'), newtempfn(""));
 	return;
@@ -72,113 +63,8 @@ sub newtempfn {
 	return $fn;
 }
 
-sub slurp {
-	my ($fn,$layers) = @_;
-	$layers = '' unless defined $layers;
-	open my $fh, "<$layers", $fn or croak "open $fn: $!";
-	my $x = do { local $/=undef; <$fh> };
-	close $fh or croak "close $fn: $!";
-	return $x;
-}
-
-sub spew {
-	my ($fn,$content,$layers) = @_;
-	$layers = '' unless defined $layers;
-	open my $fh, ">$layers", $fn or croak "open $fn: $!";
-	print $fh $content or croak "print $fn: $!";
-	close $fh or croak "close $fn: $!";
-	return $fn;
-}
-
-#use Test::Fatal 'exception';
-# We really only use "exception" for really simple cases, so let's
-# use this cheapo replacement so we can depend only on core modules!
-sub exception (&) {  ## no critic (ProhibitSubroutinePrototypes)
-	return eval { shift->(); 1 } ? undef : ($@ || confess "\$@ was false");
-}
-
-sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
-	my $sub = shift;
-	my @warns;
-	#TODO Later: can we (lexically) disable warning fatality in this block? (for author tests, at least)
-	{ local $SIG{__WARN__} = sub { push @warns, shift };
-		$sub->() }
-	return wantarray ? @warns : scalar @warns;
-}
-
 ## no critic (ProhibitMultiplePackages, RequireCarping)
 
-{
-	package Tie::Handle::Unclosable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# just force close to return a false value, since
-	# apparently we can't mock close via "local *CORE::close = sub ...",
-	# (and we didn't have CORE:: before 5.16 anyway)
-	sub CLOSE { my $self=shift; $self->SUPER::CLOSE(@_); return }
-	sub install {
-		my ($class,$repl,$which) = @_;
-		die $which unless $which eq 'ifh' || $which eq 'ofh';
-		if (ref $repl eq 'GLOB' && tied(*$repl)) {
-			   if (ref tied(*$repl) eq 'File::Replace::SingleHandle')
-				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
-			elsif (ref tied(*$repl) eq 'File::Replace::DualHandle' && $which eq 'ifh')
-				{ tied(*$repl)->set_inner_handle( $class->new( tied(*$repl)->innerhandle ) ) }
-			$repl = tied(*$repl)->replace;
-		}
-		$repl->isa('File::Replace') or die ref $repl;
-		$repl->{$which} = $class->new($repl->{$which});
-		return $repl;
-	}
-}
-{
-	package Tie::Handle::Unprintable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# we can't mock CORE::print, but we can use a tied handle to cause it to return false
-	sub WRITE { return undef }  ## no critic (ProhibitExplicitReturnUndef)
-}
-{
-	package Tie::Handle::Unreadable;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub READ { return undef }  ## no critic (ProhibitExplicitReturnUndef)
-}
-{
-	package Tie::Handle::FakeFileno;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub FILENO { return -1 }
-	sub CLOSE { return 1 }
-}
-{
-	package Tie::Handle::MockBinmode;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	# we can't mock CORE::binmode in Perl <5.16, so use a tied handle instead
-	sub new {  ## no critic (RequireArgUnpacking)
-		my $class = shift;
-		my $fh = $class->SUPER::new(shift);
-		tied(*$fh)->{mocks} = [@_];
-		return $fh;
-	}
-	sub BINMODE {
-		my $self = shift;
-		die "no more mocks left" unless @{ $self->{mocks} };
-		return shift @{ $self->{mocks} };
-	}
-	sub endmock {
-		my $self = shift;
-		return if @{ $self->{mocks} };
-		return 1;
-	}
-}
-{
-	package Tie::Handle::NeverEof;
-	require Tie::Handle::Base;
-	our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-	sub EOF { return !!0 }
-}
 {
 	package OverrideStdin;
 	# This overrides STDIN with a file, using the same code that
