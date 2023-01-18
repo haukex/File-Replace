@@ -10,6 +10,9 @@ our $VERSION = '0.15';
 
 our @CARP_NOT = qw/ File::Replace /;
 
+# this var is used by File::Replace::import
+our $GlobalInplace;  ## no critic (ProhibitPackageVars)
+
 sub new {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
 	croak "Useless use of $class->new in void context" unless defined wantarray;
