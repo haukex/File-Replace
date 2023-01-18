@@ -4,7 +4,7 @@ use warnings;
 use strict;
 use Carp;
 
-# For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
+# For AUTHOR, COPYRIGHT, AND LICENSE see Argv.pod
 
 our $VERSION = '0.16';
 
