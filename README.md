@@ -34,6 +34,8 @@ Requirements: Perl v5.8.1 or higher (a more current version is *strongly*
 recommended) and several of its core modules; users of older Perls may need
 to upgrade some core modules.
 
+Since this is an extension to `File::Replace`, that module is required.
+
 The full list of required modules can be found in the file `Makefile.PL`.
 This module should work on any platform supported by these modules.
 
