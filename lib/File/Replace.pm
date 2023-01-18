@@ -24,7 +24,7 @@ BEGIN {
 	else { *lock_ref_keys = sub {} }  # uncoverable statement
 }
 
-# For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
+# For AUTHOR, COPYRIGHT, AND LICENSE see Replace.pod
 
 ## no critic (RequireArgUnpacking)
 
