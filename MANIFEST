@@ -1,6 +1,8 @@
 Changes
 lib/File/Replace/Inplace.pm
+lib/File/Replace/Inplace.pod
 lib/Tie/Handle/Argv.pm
+lib/Tie/Handle/Argv.pod
 LICENSE.txt
 Makefile.PL
 MANIFEST			This list of files
