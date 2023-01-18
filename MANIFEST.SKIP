@@ -1,4 +1,0 @@
-#!include_default
-^MANIFEST\.SKIP$
-(^|/)\.git.*$
-^\.(travis|appveyor)\.yml$

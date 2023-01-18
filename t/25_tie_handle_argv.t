@@ -37,7 +37,7 @@ use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 
 use warnings FATAL => qw/ io inplace /;
-our $DEBUG = 0;
+our $DEBUG = 1;
 our $FE = $] ge '5.012' && $] lt '5.029007' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
 #TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
