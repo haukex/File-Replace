@@ -8,9 +8,6 @@ use Carp;
 
 our $VERSION = '0.15';
 
-require Tie::Handle::Base;
-our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)
-
 my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename debug /;
 
 sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
@@ -23,9 +20,9 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 		if defined($args{filename}) && ref $args{filename} ne 'SCALAR';
 	croak "$class->tie/new: files must be an arrayref"
 		if defined($args{files}) && ref $args{files} ne 'ARRAY';
-	my $self = $class->SUPER::TIEHANDLE();
+	my $self = { __innerhandle=>\do{local*HANDLE;*HANDLE} };
 	$self->{__lineno} = undef; # also keeps state: undef = not currently active, defined = active
-	$self->{__debug} = ref($args{debug}) ? $args{debug} : ( $args{debug} ? *STDERR{IO} : undef);
+	$self->{__debug} = 1;
 	$self->{__s_argv} = $args{filename};
 	$self->{__a_argv} = $args{files};
 	return $self;
@@ -39,8 +36,15 @@ sub _debug {  ## no critic (RequireArgUnpacking)
 	return print {$self->{__debug}} ref($self), " DEBUG: ", @_ ,"\n";
 }
 
+sub OPEN {
+	my $self = shift;
+	$self->CLOSE if defined $self->FILENO;
+	if (@_) { return open $self->{__innerhandle}, shift, @_ }
+	else    { return open $self->{__innerhandle} }
+}
+
 sub inner_close {
-	return shift->SUPER::CLOSE(@_);
+	close shift->{__innerhandle}
 }
 sub _close {
 	my $self = shift;
@@ -51,7 +55,7 @@ sub _close {
 		{ $. = $self->{__lineno} }  ## no critic (RequireLocalizedPunctuationVars)
 	else
 		{ $. = $self->{__lineno} = 0 }  ## no critic (RequireLocalizedPunctuationVars)
-	return $rv; # see tests in 20_tie_handle_base.t: we know close always returns a scalar
+	return $rv;
 }
 sub CLOSE { return shift->_close(0) }
 
@@ -90,7 +94,7 @@ sub _advance {
 		} # else
 		my $fn = $self->advance_argv;
 		$self->_debug("opening '$fn'");
-		# note: ->SUPER::OPEN uses ->CLOSE, but we don't want that, so we ->_close above
+		# note: ->OPEN uses ->CLOSE, but we don't want that, so we ->_close above
 		if ( $self->OPEN($fn) ) {
 			defined $self->{__lineno} or $self->{__lineno} = 0;
 		}
@@ -104,7 +108,7 @@ sub _advance {
 }
 
 sub read_one_line {
-	return scalar shift->SUPER::READLINE(@_);
+	return scalar readline shift->{__innerhandle};
 }
 sub READLINE {
 	my $self = shift;
@@ -126,7 +130,7 @@ sub READLINE {
 }
 
 sub inner_eof {
-	return shift->SUPER::EOF(@_);
+	eof shift->{__innerhandle}
 }
 sub EOF {  ## no critic (RequireArgUnpacking)
 	my $self = shift;
@@ -149,18 +153,25 @@ sub EOF {  ## no critic (RequireArgUnpacking)
 	return $self->inner_eof(@_);
 }
 
-sub WRITE { croak ref(shift)." is read-only" }
+sub BINMODE  {
+	my $fh = shift->{__innerhandle};
+	if (@_) { return binmode($fh,$_[0]) }
+	else    { return binmode($fh)       }
+}
+sub READ     { read($_[0]->{__innerhandle}, $_[1], $_[2], defined $_[3] ? $_[3] : 0 ) }
+sub FILENO   {   fileno  shift->{__innerhandle} }
+sub GETC     {     getc  shift->{__innerhandle} }
+sub SEEK     {     seek  shift->{__innerhandle}, $_[0], $_[1] }
+sub TELL     {     tell  shift->{__innerhandle} }
 
 sub UNTIE {
 	my $self = shift;
-	delete @$self{ grep {/^__(?!innerhandle)/} keys %$self };
-	return $self->SUPER::UNTIE(@_);
+	delete @$self{ grep {/^__/} keys %$self };
 }
 
 sub DESTROY {
 	my $self = shift;
-	delete @$self{ grep {/^__(?!innerhandle)/} keys %$self };
-	return $self->SUPER::DESTROY(@_);
+	delete @$self{ grep {/^__/} keys %$self };
 }
 
 1;
