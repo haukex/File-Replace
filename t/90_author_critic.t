@@ -8,11 +8,7 @@ Tests for the Perl module File::Replace::Inplace.
 
 =begin comment
 
-How to run coverage tests (there is a custom target in F<Makefile.PL>):
-
- perl Makefile.PL && make authorcover
- firefox cover_db/coverage.html
- git clean -dxn  # change to -dxf to actually clean
+How to run coverage tests is documented in the test library of L<File::Replace|File::Replace>.
 
 Running tests on all Perl versions: Install the required Perl versions (see
 list below), note that some test failures in Perl <5.10 can be ignored. In each
