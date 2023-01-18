@@ -7,7 +7,7 @@ use Carp;
 
 =head1 Synopsis
 
-Test support library for the Perl module File::Replace.
+Test support library for the Perl module File::Replace::Inplace.
 
 =head1 Author, Copyright, and License
 

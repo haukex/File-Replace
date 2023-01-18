@@ -4,7 +4,7 @@ use strict;
 
 =head1 Synopsis
 
-Tests for the Perl module File::Replace.
+Tests for the Perl module File::Replace::Inplace.
 
 =head1 Author, Copyright, and License
 
