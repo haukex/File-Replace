@@ -2,60 +2,60 @@
 use warnings;
 use strict;
 
-{ # THIS IS A BOILED DOWN VERSION OF https://github.com/haukex/File-Replace/blob/6ac1544/lib/Tie/Handle/Argv.pm
-	package Tie::Handle::Argv;
+# Code for https://github.com/Perl/perl5/issues/20207
 
+{
+	# THIS IS A BOILED DOWN VERSION OF https://github.com/haukex/File-Replace/blob/6ac1544/lib/Tie/Handle/Argv.pm
+	# This class is designed to mimic the behavior of the real ARGV,
+	# and extensive testing shows that it does work in Perls 5.16 and up.
+	# The following code has been extensively reduced to only the code
+	# necessary to reproduce the test failures that started showing up
+	# in Perl 5.37.4.
+	package Tie::Handle::Argv;
+	
 	sub TIEHANDLE {
-		return bless {
-			active => 0,
-			innerhandle => \do{local*HANDLE;*HANDLE},
-		}, shift;
+		return bless { active => 0,
+				innerhandle => \do{local*HANDLE;*HANDLE},
+			}, shift;
 	}
 	sub DESTROY { delete shift->{innerhandle} }
-
+	
 	sub _advance {
 		my ($self, $peek) = @_;
-		if ( $self->{active} ) { close $self->{innerhandle} }
-		else {
-			die "Unexpected test state" if @ARGV;
-			unshift @ARGV, '-';
-		}
-		if ( !@ARGV ) { # file list is now empty, closing and done
+		if ( $self->{active} ) {
+			close $self->{innerhandle};
 			$self->{active} = 0 unless $peek;
 			return 0;
 		}
 		else {
-			$ARGV = shift @ARGV;
-			die "Unexpected test state" unless $ARGV eq '-';
+			die "Unexpected test state" if @ARGV;
+			$ARGV = '-';
 			open $self->{innerhandle}, $ARGV or die $!;
 			$self->{active} = 1;
 			return 1;
 		}
 	}
-
+	
 	sub READLINE {
 		my $self = shift;
 		my @out;
 		die "Unexpected test state" if wantarray;
-		RL_LINE: while (1) {
-			while ($self->EOF(1)) { # current file is at EOF, advance
-				$self->_advance or last RL_LINE;
-			}
-			return scalar readline $self->{innerhandle};
+		while ($self->EOF(1)) { # current file is at EOF, advance
+			if ( not $self->_advance ) { return }
 		}
+		return scalar readline $self->{innerhandle};
 	}
-
+	
 	sub EOF {
 		my $self = shift;
 		if ( @_ && $_[0]==2 ) {  # we were called as "eof()" on tied ARGV
 			while ( eof $self->{innerhandle} ) {  # current file is at EOF, peek
-				return !!1 unless $self->_advance("peek");  # could not peek => EOF
+				if ( not $self->_advance("peek") ) { return !!1 }  # could not peek => EOF
 			}
 			return !!0;  # not at EOF
 		}
 		return eof $self->{innerhandle};
 	}
-
 }
 
 # THIS IS A BOILED DOWN VERSION OF https://github.com/haukex/File-Replace/blob/6ac1544/t/25_tie_handle_argv.t
@@ -64,6 +64,7 @@ use File::Temp qw/tempfile/;
 use POSIX qw/dup dup2/;
 use Test::More;
 
+# using an overridden STDIN appears important to reproduce failure
 sub override_stdin {
 	my $string = shift;
 	my $fh = tempfile();
@@ -79,7 +80,7 @@ sub restore_stdin {
 	POSIX::close( $saved_fd0 ) or die "close saved: $!";
 }
 
-{ # test regular ARGV
+{ # test regular ARGV to confirm its behavior matches the tied ARGV
 	local (*ARGV, $.);
 	my $saved_fd0 = override_stdin("Hello");
 	
