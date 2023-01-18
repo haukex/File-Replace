@@ -1,6 +1,6 @@
 Revision history for Perl extension File::Replace.
 
-0.16	not yet released
+0.16	Wed, Jan 18 2023
 	- split the modules Tie::Handle::Base, File::Replace::Inplace into
 	  separate distributions
 	- split the "replace" and "replace2" functions into the distribution
