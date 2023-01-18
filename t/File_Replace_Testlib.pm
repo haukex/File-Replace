@@ -31,9 +31,9 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 =cut
 
 use parent 'Exporter';
-our @EXPORT = qw/ newtempfn /;  ## no critic (ProhibitAutomaticExportation)
+our @EXPORT = qw/ newtempfn /;
 
-sub import {  ## no critic (RequireArgUnpacking)
+sub import {
 	__PACKAGE__->export_to_level(1, @_);
 	$File::Replace::DISABLE_CHMOD = 1 unless chmod(oct('640'), newtempfn(""));
 	return;
@@ -62,8 +62,6 @@ sub newtempfn {
 	}
 	return $fn;
 }
-
-## no critic (ProhibitMultiplePackages, RequireCarping)
 
 {
 	package OverrideStdin;

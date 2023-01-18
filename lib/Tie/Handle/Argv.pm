@@ -10,7 +10,7 @@ our $VERSION = '0.15';
 
 my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename /;
 
-sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
+sub TIEHANDLE {
 	my $class = shift;
 	croak $class."::tie/new: bad number of arguments" if @_%2;
 	my %args = @_;
@@ -43,9 +43,9 @@ sub _close {
 	my $keep_lineno = shift;
 	my $rv = $self->inner_close;
 	if ($keep_lineno)
-		{ $. = $self->{__lineno} }  ## no critic (RequireLocalizedPunctuationVars)
+		{ $. = $self->{__lineno} }
 	else
-		{ $. = $self->{__lineno} = 0 }  ## no critic (RequireLocalizedPunctuationVars)
+		{ $. = $self->{__lineno} = 0 }
 	return $rv;
 }
 sub CLOSE { return shift->_close(0) }
@@ -71,7 +71,7 @@ sub _advance {
 	if ( !defined($self->{__lineno}) && !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
 		# file list is initially empty ($.=0)
 		# the normal <> also appears to reset $. to 0 in this case:
-		$. = 0;  ## no critic (RequireLocalizedPunctuationVars)
+		$. = 0;
 		$self->init_empty_argv;
 	}
 	FILE: {
@@ -109,7 +109,7 @@ sub READLINE {
 		my $line = $self->read_one_line;
 		last unless defined $line;
 		push @out, $line;
-		$. = ++$self->{__lineno};  ## no critic (RequireLocalizedPunctuationVars)
+		$. = ++$self->{__lineno};
 		last unless wantarray;
 	}
 	return wantarray ? @out : $out[0];
@@ -118,7 +118,7 @@ sub READLINE {
 sub inner_eof {
 	eof shift->{__innerhandle}
 }
-sub EOF {  ## no critic (RequireArgUnpacking)
+sub EOF {
 	my $self = shift;
 	# "Starting with Perl 5.12, an additional integer parameter will be passed.
 	# It will be zero if eof is called without parameter;

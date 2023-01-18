@@ -38,7 +38,6 @@ use File::Temp qw/tempdir/;
 
 use warnings FATAL => qw/ io inplace /;
 our $FE = $] ge '5.012' && $] lt '5.029007' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
-#TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
 our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
 our $FL = undef; # FL="First Line"
@@ -49,21 +48,19 @@ if ( $^O eq 'MSWin32' && $] ge '5.014' && $] lt '5.018' )
 
 BEGIN { use_ok('Tie::Handle::Argv') }
 
-## no critic (RequireCarping)
-
-sub testboth {  ## no critic (RequireArgUnpacking)
+sub testboth {
 	# test that both regular ARGV and our tied base class act the same
 	die "bad nr of args" unless @_==2 || @_==3;
 	my ($name, $sub, $args) = @_;
 	my $stdin = delete $$args{stdin};
 	{
-		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
+		local (*ARGV, $.);
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - untied" => $sub;
 		$osi and $osi->restore;
 	}
 	{
-		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
+		local (*ARGV, $.);
 		local $CE = $] lt '5.012';
 		local $BE = $] ge '5.014' && $] lt '5.016';
 		tie *ARGV, 'Tie::Handle::Argv';
@@ -76,10 +73,10 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 }
 
 testboth 'restart with emptied @ARGV (STDIN)' => sub {
-	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>2); #TODO: OverrideStdin doesn't seem to work everywhere
+	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>2);
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
-	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
+	@ARGV = @tf;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
