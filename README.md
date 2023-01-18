@@ -43,7 +43,7 @@ This module should work on any platform supported by these modules.
 Author, Copyright and License
 -----------------------------
 
-Copyright (c) 2017 Hauke Daempfling <haukex@zero-g.net>
+Copyright (c) 2017-2023 Hauke Daempfling <haukex@zero-g.net>
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, <http://www.igb-berlin.de/>
 

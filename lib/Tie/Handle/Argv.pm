@@ -382,7 +382,7 @@ filehandle.
 
 =head1 Author, Copyright, and License
 
-Copyright (c) 2018 Hauke Daempfling (haukex@zero-g.net)
+Copyright (c) 2018-2023 Hauke Daempfling (haukex@zero-g.net)
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, L<http://www.igb-berlin.de/>
 

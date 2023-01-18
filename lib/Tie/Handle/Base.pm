@@ -344,7 +344,7 @@ a base class for tying to Perl's magic C<ARGV> handle.
 
 =head1 Author, Copyright, and License
 
-Copyright (c) 2017 Hauke Daempfling (haukex@zero-g.net)
+Copyright (c) 2017-2023 Hauke Daempfling (haukex@zero-g.net)
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, L<http://www.igb-berlin.de/>
 
