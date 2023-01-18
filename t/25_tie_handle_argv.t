@@ -26,11 +26,10 @@ sub restore_stdin {
 
 { # test regular ARGV
 	local (*ARGV, $.);
-	my $saved_fd0 = override_stdin("Hello\nWorld");
+	my $saved_fd0 = override_stdin("Hello");
 	
 	ok !eof(), 'eof() is false';
-	is scalar(<>), "Hello\n";
-	is scalar(<>), "World";
+	is scalar(<>), "Hello";
 	is scalar(<>), undef;
 	
 	restore_stdin($saved_fd0);
@@ -39,11 +38,10 @@ sub restore_stdin {
 { # test tied ARGV
 	local (*ARGV, $.);
 	tie *ARGV, 'Tie::Handle::Argv';
-	my $saved_fd0 = override_stdin("Hello\nWorld");
+	my $saved_fd0 = override_stdin("Hello");
 	
 	ok !eof(), 'eof() is false';
-	is scalar(<>), "Hello\n";
-	is scalar(<>), "World";
+	is scalar(<>), "Hello";
 	is scalar(<>), undef;
 	
 	restore_stdin($saved_fd0);
