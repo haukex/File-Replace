@@ -90,7 +90,7 @@ sub exception (&) {  ## no critic (ProhibitSubroutinePrototypes)
 sub warns (&) {  ## no critic (ProhibitSubroutinePrototypes)
 	my $sub = shift;
 	my @warns;
-	#TODO Later: can we (lexically) disable warning fatality in this block? (for author tests, at least)
+	# Possible To-Do for Later: can we (lexically) disable warning fatality in this block? (for author tests, at least)
 	{ local $SIG{__WARN__} = sub { push @warns, shift };
 		$sub->() }
 	return wantarray ? @warns : scalar @warns;

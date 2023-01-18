@@ -6,7 +6,7 @@ WriteMakefile(
 	AUTHOR         => 'Hauke D <haukex@zero-g.net>',
 	LICENSE        => 'gpl_3',
 	VERSION_FROM   => 'lib/Tie/Handle/Base.pm', # finds $VERSION
-	ABSTRACT_FROM  => 'lib/Tie/Handle/Base.pm',
+	ABSTRACT_FROM  => 'lib/Tie/Handle/Base.pod',
 	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {
 		'meta-spec'  => { version => 2 },

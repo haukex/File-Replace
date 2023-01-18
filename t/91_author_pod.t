@@ -35,7 +35,7 @@ use File::Spec::Functions qw/catfile/;
 our @PODFILES;
 BEGIN {
 	@PODFILES = (
-		catfile($FindBin::Bin,qw/ .. lib Tie Handle Base.pm /),
+		catfile($FindBin::Bin,qw/ .. lib Tie Handle Base.pod /),
 	);
 }
 
