@@ -161,9 +161,9 @@ sub replace3 {
 }
 
 sub replace2 {
+	require File::Replace::SingleHandle;
 	unless (defined wantarray) { warnings::warnif("Useless use of "
 		.__PACKAGE__."::replace2 in void context"); return }
-	require File::Replace::SingleHandle;
 	my $repl = __PACKAGE__->new(@_);
 	if (wantarray) {
 		return (
@@ -176,9 +176,9 @@ sub replace2 {
 }
 
 sub replace {
+	require File::Replace::DualHandle;
 	unless (defined wantarray) { warnings::warnif("Useless use of "
 		.__PACKAGE__."::replace in void context"); return }
-	require File::Replace::DualHandle;
 	my $repl = __PACKAGE__->new(@_);
 	return File::Replace::DualHandle->new($repl);
 }

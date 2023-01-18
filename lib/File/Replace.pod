@@ -6,12 +6,6 @@ the original
 
 =head1 Synopsis
 
-=for comment
-REMEMBER to keep these examples in sync with 91_author_pod.t
-
-Next to the normal OO constructor, L<C<new>|/new>, this module provides three
-interfaces:
-
  use File::Replace 'replace3';
  
  my ($infh,$outfh,$repl) = replace3($filename);
@@ -19,31 +13,7 @@ interfaces:
      # write whatever you like to $outfh here
      print $outfh "X: $_";
  }
- $repl->finish;
-
-The following two provide a bit more magic via tied filehandles:
-
- use File::Replace 'replace2';
- 
- my ($infh,$outfh) = replace2($filename);
- while (<$infh>) {
-     print $outfh "Y: $_";
- }
- close $infh;   # closing both handles will
- close $outfh;  # trigger the replace
-
-Or the even more magical single filehandle, in which C<print>, C<printf>, and
-C<syswrite> go to the output file; C<binmode> to both; C<fileno> only reports
-open/closed status; and the other I/O functions go to the input file:
-
- use File::Replace 'replace';
- 
- my $fh = replace($filename);
- while (<$fh>) {
-     # can read _and_ write from/to $fh
-     print $fh "Z: $_";
- }
- close $fh;
+ $repl->finish;  # closes the handles
 
 =head1 Description
 
@@ -78,6 +48,12 @@ system's documentation and search the Internet for "atomic rename" for more
 details. This module's job is to perform the C<rename>, and it can make
 B<no guarantees> as to whether it will be atomic or not.
 
+=head2 Notice
+
+As of version 0.16, the distribution of this module has been split into
+several distributions: See the documentation of L</replace>,
+L</replace2>, and L</inplace> for details.
+
 =head2 Version
 
 This documentation describes version 0.16 of this module.
@@ -86,8 +62,11 @@ This documentation describes version 0.16 of this module.
 
 The constructors C<< File::Replace->new() >>, C<replace3()>, C<replace2()>, and
 C<replace()> take exactly the same arguments, and differ only in their return
-values - C<replace2> and C<replace> wrap the functionality of C<File::Replace>
-inside C<tie>d filehandles. Note that C<replace3()>, C<replace2()>, and
+values - C<replace2> and C<replace> require you to install
+L<File::Replace::Fancy|File::Replace::Fancy> and
+wrap the functionality of C<File::Replace> inside C<tie>d filehandles.
+
+Note that C<replace3()>, C<replace2()>, and
 C<replace()> are normal functions and not methods, don't attempt to call them
 as such. If you don't want to import them you can always call them as, for
 example, C<File::Replace::replace()>.
@@ -147,9 +126,17 @@ is the same as
 
 =head2 C<replace2>
 
+**Note** As of version 0.16, if you want to use this function, you must
+install L<File::Replace::Fancy|File::Replace::Fancy>!
+
  use File::Replace 'replace2';
- my ($input_handle, $output_handle) = replace2($filename, ...);
- my $output_handle = replace2($filename, ...);
+ 
+ my ($infh,$outfh) = replace2($filename);
+ while (<$infh>) {
+     print $outfh "Y: $_";
+ }
+ close $infh;   # closing both handles will
+ close $outfh;  # trigger the replace
 
 In list context, returns a two-element list of two tied filehandles, the first
 being the input filehandle, and the second the output filehandle, and the
@@ -168,8 +155,17 @@ these handles as this may lead to confusion.
 
 =head2 C<replace>
 
+**Note** As of version 0.16, if you want to use this function, you must
+install L<File::Replace::Fancy|File::Replace::Fancy>!
+
  use File::Replace 'replace';
- my $magic_handle = replace($filename, ...);
+ 
+ my $fh = replace($filename);
+ while (<$fh>) {
+     # can read _and_ write from/to $fh
+     print $fh "Z: $_";
+ }
+ close $fh;
 
 Returns a single, "magical" tied filehandle. The operations C<print>,
 C<printf>, and C<syswrite> are passed through to the output filehandle,
@@ -196,6 +192,10 @@ but please don't C<close> or re-C<open> these handles as this may lead to
 confusion.
 
 =head2 C<inplace>
+
+**Warning:** As of version 0.16, if you want to use this function, you
+must install the **experimental** module
+L<File::Replace::Inplace|File::Replace::Inplace>.
 
 This is a shorthand for the constructor of
 L<File::Replace::Inplace|File::Replace::Inplace>. That is:

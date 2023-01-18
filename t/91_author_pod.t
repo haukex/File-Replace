@@ -39,7 +39,7 @@ BEGIN {
 	);
 }
 
-use Test::More $AUTHOR_TESTS ? (tests=>1*@PODFILES+2)
+use Test::More $AUTHOR_TESTS ? (tests=>1*@PODFILES+1)
 	: (skip_all=>'author POD tests');
 
 use Test::Pod;
@@ -54,26 +54,14 @@ use File::Temp qw/tempdir/;
 subtest 'verbatim code' => sub {
 	## no critic (ProhibitStringyEval, RequireBriefOpen, RequireCarping)
 	my $verb_fr = getverbatim($PODFILES[0], qr/\bsynopsis\b/i);
-	is @$verb_fr, 3, 'File::Replace verbatim block count'
+	is @$verb_fr, 1, 'File::Replace verbatim block count'
 		or diag explain $verb_fr;
 	{
 		my $filename = newtempfn("Foo\nBar\nQuz\n");
 		eval("use warnings; use strict; $$verb_fr[0]; 1") or fail($@);
-		is slurp($filename), "X: Foo\nX: Bar\nX: Quz\n", 'File::Replace synposis 1';
-		eval("use warnings; use strict; $$verb_fr[1]; 1") or fail($@);
-		is slurp($filename), "Y: X: Foo\nY: X: Bar\nY: X: Quz\n", 'File::Replace synposis 2';
-		eval("use warnings; use strict; $$verb_fr[2]; 1") or fail($@);
-		is slurp($filename), "Z: Y: X: Foo\nZ: Y: X: Bar\nZ: Y: X: Quz\n", 'File::Replace synposis 3';
+		is slurp($filename), "X: Foo\nX: Bar\nX: Quz\n", 'File::Replace synposis';
 	}
 	## use critic
-};
-
-subtest 'other doc bits' => sub {
-	my $handle = replace(newtempfn);
-	# other bits from the documentation
-	ok defined eof( tied(*$handle)->out_fh ), 'out eof';
-	ok defined tied(*$handle)->out_fh->tell(), 'out tell';
-	close $handle;
 };
 
 use Pod::Simple::SimpleTree;

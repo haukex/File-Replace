@@ -6,7 +6,7 @@ WriteMakefile(
 	AUTHOR         => 'Hauke D <haukex@zero-g.net>',
 	LICENSE        => 'gpl_3',
 	VERSION_FROM   => 'lib/File/Replace.pm', # finds $VERSION
-	ABSTRACT_FROM  => 'lib/File/Replace.pm',
+	ABSTRACT_FROM  => 'lib/File/Replace.pod',
 	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {
 		'meta-spec'  => { version => 2 },
@@ -33,6 +33,7 @@ WriteMakefile(
 				recommends => { # "strongly encouraged and should be satisfied except in resource constrained environments"
 				},
 				suggests   => { # "optional, but are suggested for enhanced operation"
+					'File::Replace::Fancy' => '0.16',
 				},
 			},
 		},
