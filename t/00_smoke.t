@@ -27,7 +27,7 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 =cut
 
-use Test::More tests=>7; # remember to keep in sync with done_testing
+use Test::More tests=>11; # remember to keep in sync with done_testing
 
 BEGIN {
 	diag "This is Perl $] at $^X on $^O";
@@ -43,10 +43,17 @@ use File_Replace_Testlib;
 BEGIN {
 	use_ok('Tie::Handle::Base')
 		or BAIL_OUT("failed to use Tie::Handle::Base");
-	use_ok 'File::Replace' or BAIL_OUT("failed to use File::Replace");
+	use_ok('Tie::Handle::Argv')
+		or BAIL_OUT("failed to use Tie::Handle::Argv");
+	use_ok 'File::Replace'
+		or BAIL_OUT("failed to use File::Replace");
+	use_ok 'File::Replace::Inplace'
+		or BAIL_OUT("failed to use File::Replace::Inplace");
 }
 is $Tie::Handle::Base::VERSION, '0.16', 'Tie::Handle::Base version matches tests';
+is $Tie::Handle::Argv::VERSION, '0.16', 'Tie::Handle::Argv version matches tests';
 is $File::Replace::VERSION, '0.16', 'File::Replace version matches tests';
+is $File::Replace::Inplace::VERSION, '0.16', 'File::Replace::Inplace version matches tests';
 
 $File::Replace::DISABLE_CHMOD and diag "\n",
 	"it appears a simple chmod failed on your system,\n",
@@ -64,5 +71,5 @@ is slurp($fn1), "Hellu\nWurld\n", 'basic test';
 
 if (my $cnt = grep {!$_} Test::More->builder->summary)
 	{ BAIL_OUT("$cnt smoke tests failed") }
-done_testing(7);
+done_testing(11);
 
