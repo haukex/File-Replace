@@ -6,107 +6,62 @@ use Carp;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
-our $VERSION = '0.15';
-
-my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename /;
+our $VERSION = '0.16a';
 
 sub TIEHANDLE {
-	my $class = shift;
-	croak $class."::tie/new: bad number of arguments" if @_%2;
-	my %args = @_;
-	for (keys %args) { croak "$class->tie/new: unknown argument '$_'"
-		unless $TIEHANDLE_KNOWN_ARGS{$_} }
-	croak "$class->tie/new: filename must be a scalar ref"
-		if defined($args{filename}) && ref $args{filename} ne 'SCALAR';
-	croak "$class->tie/new: files must be an arrayref"
-		if defined($args{files}) && ref $args{files} ne 'ARRAY';
-	my $self = { __innerhandle=>\do{local*HANDLE;*HANDLE} };
-	$self->{__lineno} = undef; # also keeps state: undef = not currently active, defined = active
-	$self->{__s_argv} = $args{filename};
-	$self->{__a_argv} = $args{files};
-	return $self;
+	return {
+		__innerhandle => \do{local*HANDLE;*HANDLE},
+		__lineno => undef,  # also keeps state: undef = not currently active, defined = active
+	};
 }
+
+sub FILENO { fileno shift->{__innerhandle} }
 
 sub OPEN {
 	my $self = shift;
 	$self->CLOSE if defined $self->FILENO;
-	if (@_) { return open $self->{__innerhandle}, shift, @_ }
-	else    { return open $self->{__innerhandle} }
+	return open $self->{__innerhandle}, shift, @_;
 }
 
-sub inner_close {
-	close shift->{__innerhandle}
-}
 sub _close {
-	my $self = shift;
-	confess "bad number of arguments to _close" unless @_==1;
-	my $keep_lineno = shift;
-	my $rv = $self->inner_close;
-	if ($keep_lineno)
-		{ $. = $self->{__lineno} }
-	else
-		{ $. = $self->{__lineno} = 0 }
+	my ($self, $keep_lineno) = shift;
+	my $rv = close shift->{__innerhandle};
+	$self->{__lineno} = 0 unless $keep_lineno;
+	$. = $self->{__lineno};
 	return $rv;
 }
-sub CLOSE { return shift->_close(0) }
+sub CLOSE { return shift->_close }
 
-sub init_empty_argv {
-	my $self = shift;
-	unshift @{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV }, '-';
-	return;
-}
-sub advance_argv {
-	my $self = shift;
-	# Note: we do these gymnastics with the references because we always want
-	# to access the currently global $ARGV and @ARGV - if we just stored references
-	# to these in our object, we wouldn't notices changes due to "local"ization!
-	return ${ defined $self->{__s_argv} ? $self->{__s_argv} : \$ARGV }
-		= shift @{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV };
-}
-sub sequence_end {}
 sub _advance {
-	my $self = shift;
-	my $peek = shift;
-	confess "too many arguments to _advance" if @_;
-	if ( !defined($self->{__lineno}) && !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
-		# file list is initially empty ($.=0)
-		# the normal <> also appears to reset $. to 0 in this case:
-		$. = 0;
-		$self->init_empty_argv;
+	my ($self, $peek) = @_;
+	if ( !defined($self->{__lineno}) && !@ARGV ) {  # file list is initially empty
+		unshift @ARGV, '-';
+		$. = 0;  # the normal <> also resets $. to 0 in this case
 	}
 	FILE: {
-		$self->_close(1) if defined $self->{__lineno};
-		if ( !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
-			# file list is now empty, closing and done ($.=$.)
+		$self->_close('keep_lineno') if defined $self->{__lineno};
+		if ( !@ARGV ) { # file list is now empty, closing and done
 			$self->{__lineno} = undef unless $peek;
-			$self->sequence_end;
 			return;
 		} # else
-		my $fn = $self->advance_argv;
-		# note: ->OPEN uses ->CLOSE, but we don't want that, so we ->_close above
-		if ( $self->OPEN($fn) ) {
-			defined $self->{__lineno} or $self->{__lineno} = 0;
-		}
-		else {
-			warnings::warnif("inplace", "Can't open $fn: $!");
-			redo FILE;
-		}
+		$ARGV = shift @ARGV;
+		# note: ->OPEN uses ->CLOSE (resets $.), but we don't want that, so we ->_close above
+		if ( $self->OPEN($ARGV) )
+			{ defined $self->{__lineno} or $self->{__lineno} = 0 }
+		else { warn "Can't open $ARGV: $!"; redo FILE }
 	}
 	return 1;
 }
 
-sub read_one_line {
-	return scalar readline shift->{__innerhandle};
-}
 sub READLINE {
 	my $self = shift;
 	my @out;
 	RL_LINE: while (1) {
 		while ($self->EOF(1)) {
-			# current file is at EOF, advancing
+			# current file is at EOF, advance
 			$self->_advance or last RL_LINE;
 		}
-		my $line = $self->read_one_line;
+		my $line = scalar readline shift->{__innerhandle};
 		last unless defined $line;
 		push @out, $line;
 		$. = ++$self->{__lineno};
@@ -115,9 +70,6 @@ sub READLINE {
 	return wantarray ? @out : $out[0];
 }
 
-sub inner_eof {
-	eof shift->{__innerhandle}
-}
 sub EOF {
 	my $self = shift;
 	# "Starting with Perl 5.12, an additional integer parameter will be passed.
@@ -125,31 +77,13 @@ sub EOF {
 	# 1 if eof is given a filehandle as a parameter, e.g. eof(FH);
 	# and 2 in the very special case that the tied filehandle is ARGV
 	# and eof is called with an empty parameter list, e.g. eof()."
-	if (@_ && $_[0]==2) {
-		while ( $self->inner_eof(1) ) {  # current file is at EOF, peek
-			if ( not $self->_advance("peek") ) { # could not peek => EOF
-				return !!1;
-			}
+	if ( @_ && $_[0]==2 ) {
+		while ( eof shift->{__innerhandle} ) {  # current file is at EOF, peek
+			return !!1 unless $self->_advance("peek");  # could not peek => EOF
 		}
-		return !!0; # Not at EOF
+		return !!0;  # not at EOF
 	}
-	return $self->inner_eof(@_);
-}
-
-sub BINMODE  {
-	my $fh = shift->{__innerhandle};
-	if (@_) { return binmode($fh,$_[0]) }
-	else    { return binmode($fh)       }
-}
-sub READ     { read($_[0]->{__innerhandle}, $_[1], $_[2], defined $_[3] ? $_[3] : 0 ) }
-sub FILENO   {   fileno  shift->{__innerhandle} }
-sub GETC     {     getc  shift->{__innerhandle} }
-sub SEEK     {     seek  shift->{__innerhandle}, $_[0], $_[1] }
-sub TELL     {     tell  shift->{__innerhandle} }
-
-sub UNTIE {
-	my $self = shift;
-	delete @$self{ grep {/^__/} keys %$self };
+	return eof shift->{__innerhandle};
 }
 
 sub DESTROY {
