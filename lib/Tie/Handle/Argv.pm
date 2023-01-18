@@ -8,7 +8,7 @@ use Carp;
 
 our $VERSION = '0.15';
 
-my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename debug /;
+my %TIEHANDLE_KNOWN_ARGS = map {($_=>1)} qw/ files filename /;
 
 sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 	my $class = shift;
@@ -22,18 +22,9 @@ sub TIEHANDLE {  ## no critic (RequireArgUnpacking)
 		if defined($args{files}) && ref $args{files} ne 'ARRAY';
 	my $self = { __innerhandle=>\do{local*HANDLE;*HANDLE} };
 	$self->{__lineno} = undef; # also keeps state: undef = not currently active, defined = active
-	$self->{__debug} = 1;
 	$self->{__s_argv} = $args{filename};
 	$self->{__a_argv} = $args{files};
 	return $self;
-}
-
-sub _debug {  ## no critic (RequireArgUnpacking)
-	my $self = shift;
-	return 1 unless $self->{__debug};
-	confess "not enough arguments to _debug" unless @_;
-	local ($",$,,$\) = (' ');
-	return print {$self->{__debug}} ref($self), " DEBUG: ", @_ ,"\n";
 }
 
 sub OPEN {
@@ -61,7 +52,6 @@ sub CLOSE { return shift->_close(0) }
 
 sub init_empty_argv {
 	my $self = shift;
-	$self->_debug("adding '-' to file list");
 	unshift @{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV }, '-';
 	return;
 }
@@ -79,7 +69,7 @@ sub _advance {
 	my $peek = shift;
 	confess "too many arguments to _advance" if @_;
 	if ( !defined($self->{__lineno}) && !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
-		$self->_debug("file list is initially empty (\$.=0)");
+		# file list is initially empty ($.=0)
 		# the normal <> also appears to reset $. to 0 in this case:
 		$. = 0;  ## no critic (RequireLocalizedPunctuationVars)
 		$self->init_empty_argv;
@@ -87,19 +77,17 @@ sub _advance {
 	FILE: {
 		$self->_close(1) if defined $self->{__lineno};
 		if ( !@{ defined $self->{__a_argv} ? $self->{__a_argv} : \@ARGV } ) {
-			$self->_debug("file list is now empty, closing and done (\$.=$.)");
+			# file list is now empty, closing and done ($.=$.)
 			$self->{__lineno} = undef unless $peek;
 			$self->sequence_end;
 			return;
 		} # else
 		my $fn = $self->advance_argv;
-		$self->_debug("opening '$fn'");
 		# note: ->OPEN uses ->CLOSE, but we don't want that, so we ->_close above
 		if ( $self->OPEN($fn) ) {
 			defined $self->{__lineno} or $self->{__lineno} = 0;
 		}
 		else {
-			$self->_debug("open '$fn' failed: $!");
 			warnings::warnif("inplace", "Can't open $fn: $!");
 			redo FILE;
 		}
@@ -112,11 +100,10 @@ sub read_one_line {
 }
 sub READLINE {
 	my $self = shift;
-	$self->_debug("readline in ", wantarray?"list":"scalar", " context");
 	my @out;
 	RL_LINE: while (1) {
 		while ($self->EOF(1)) {
-			$self->_debug("current file is at EOF, advancing");
+			# current file is at EOF, advancing
 			$self->_advance or last RL_LINE;
 		}
 		my $line = $self->read_one_line;
@@ -125,7 +112,6 @@ sub READLINE {
 		$. = ++$self->{__lineno};  ## no critic (RequireLocalizedPunctuationVars)
 		last unless wantarray;
 	}
-	$self->_debug("readline: ",0+@out," lines (\$.=$.)");
 	return wantarray ? @out : $out[0];
 }
 
@@ -140,15 +126,12 @@ sub EOF {  ## no critic (RequireArgUnpacking)
 	# and 2 in the very special case that the tied filehandle is ARGV
 	# and eof is called with an empty parameter list, e.g. eof()."
 	if (@_ && $_[0]==2) {
-		while ( $self->inner_eof(1) ) {
-			$self->_debug("eof(): current file is at EOF, peeking");
-			if ( not $self->_advance("peek") ) {
-				$self->_debug("eof(): could not peek => EOF");
+		while ( $self->inner_eof(1) ) {  # current file is at EOF, peek
+			if ( not $self->_advance("peek") ) { # could not peek => EOF
 				return !!1;
 			}
 		}
-		$self->_debug("eof(): => Not at EOF");
-		return !!0;
+		return !!0; # Not at EOF
 	}
 	return $self->inner_eof(@_);
 }

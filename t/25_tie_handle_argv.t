@@ -37,7 +37,6 @@ use Cwd qw/getcwd/;
 use File::Temp qw/tempdir/;
 
 use warnings FATAL => qw/ io inplace /;
-our $DEBUG = 1;
 our $FE = $] ge '5.012' && $] lt '5.029007' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
 #TODO Later: Why is $BE needed here, but not in the ::Inplace tests?
 our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
@@ -47,8 +46,6 @@ our $FL = undef; # FL="First Line"
 # I've seen differing results on different systems and I'm not sure why, so I set it dynamically... not pretty, but this test isn't critical.
 if ( $^O eq 'MSWin32' && $] ge '5.014' && $] lt '5.018' )
 	{ $FL = $.; $FE = defined($.) }
-
-diag "WARNING: Perl 5.16 or better is strongly recommended for Tie::Handle::Argv (see documentation)" if $] lt '5.016';
 
 BEGIN { use_ok('Tie::Handle::Argv') }
 
@@ -69,7 +66,7 @@ sub testboth {  ## no critic (RequireArgUnpacking)
 		local (*ARGV, $.);  ## no critic (RequireInitializationForLocalVars)
 		local $CE = $] lt '5.012';
 		local $BE = $] ge '5.014' && $] lt '5.016';
-		tie *ARGV, 'Tie::Handle::Argv', debug=>$DEBUG;
+		tie *ARGV, 'Tie::Handle::Argv';
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - tied" => $sub;
 		$osi and $osi->restore;
