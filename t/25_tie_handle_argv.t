@@ -7,10 +7,10 @@ use POSIX qw/dup dup2/;
 use Test::More tests=>2;
 use Tie::Handle::Argv;
 
-# For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
+# THIS IS A BOILED DOWN VERSION OF https://github.com/haukex/File-Replace/blob/6ac1544/t/25_tie_handle_argv.t
 
 my $testsub = sub { plan tests=>2;
-	
+	# set up temporary input files
 	my @tempfiles;
 	my ($fh,$fn) = tempfile(UNLINK=>1);
 	print $fh "Fo\nBr";
@@ -20,7 +20,7 @@ my $testsub = sub { plan tests=>2;
 	print $fh "Qz\nBz\n";
 	close $fh;
 	push @tempfiles, $fn;
-	
+	# run the tests
 	@ARGV = @tempfiles;
 	my @states;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -32,7 +32,7 @@ my $testsub = sub { plan tests=>2;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
 	    #                                defined(fileno ARGV)
-		# @ARGV           $ARGV          |    $.     eof  $_
+		# @ARGV           $ARGV          |    $.     eof  readline
 		[[@tempfiles],    undef,         !!0, undef, !!1           ],
 		[[$tempfiles[1]], $tempfiles[0], !!1, 1,     !!0, "Fo\n"   ],
 		[[$tempfiles[1]], $tempfiles[0], !!1, 2,     !!1, "Br"     ],
@@ -76,26 +76,3 @@ sub restore_stdin {
 	restore_stdin($saved_fd0);
 	untie *ARGV;
 }
-
-__END__
-
-=head1 Author, Copyright, and License
-
-Copyright (c) 2018 Hauke Daempfling (haukex@zero-g.net)
-at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
-Berlin, Germany, L<http://www.igb-berlin.de/>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see L<http://www.gnu.org/licenses/>.
-
-=cut
