@@ -27,25 +27,56 @@ along with this program. If not, see L<http://www.gnu.org/licenses/>.
 
 =cut
 
-use FindBin ();
-use lib $FindBin::Bin;
-use File_Replace_Testlib;
+use Carp;
+use File::Temp qw/tempfile/;
+
+{
+	package OverrideStdin;
+	# This overrides STDIN with a file, using the same code that
+	# IPC::Run3 uses, which seems to work well. Cleanup is performed
+	# on object destruction.
+	use Carp;
+	use File::Temp qw/tempfile/;
+	use POSIX qw/dup dup2/;
+	our $DEBUG;
+	BEGIN { $DEBUG = 0 }
+	sub new {
+		my $class = shift;
+		croak "$class->new: bad nr of args" unless @_==1;
+		my $string = shift;
+		my $fh = tempfile();
+		print $fh $string;
+		seek $fh, 0, 0 or die "seek: $!";
+		$DEBUG and print STDERR "Overriding STDIN\n";
+		my $saved_fd0 = dup( 0 ) or die "dup(0): $!";
+		dup2( fileno $fh, 0 ) or die "save dup2: $!";
+		return bless \$saved_fd0, $class;
+	}
+	sub restore {
+		my $self = shift;
+		my $saved_fd0 = $$self;
+		return unless defined $saved_fd0;
+		$DEBUG and print STDERR "Restoring STDIN\n";
+		dup2( $saved_fd0, 0 ) or die "restore dup2: $!";
+		POSIX::close( $saved_fd0 ) or die "close saved: $!";
+		$$self = undef;
+		return 1;
+	}
+	sub DESTROY { return shift->restore }
+}
+
+
+sub newtempfn {
+	my $content = shift;
+	my ($fh,$fn) = tempfile(UNLINK=>1);
+	print $fh $content or croak "print $fn: $!";
+	close $fh or croak "close $fn: $!";
+	return $fn;
+}
 
 use Test::More;
 
-use Cwd qw/getcwd/;
-use File::Temp qw/tempdir/;
-
 use warnings FATAL => qw/ io inplace /;
-our $FE = $] ge '5.012' && $] lt '5.029007' ? !!0 : !!1; # FE="first eof", see http://rt.perl.org/Public/Bug/Display.html?id=133721
-our $BE; # BE="buggy eof", Perl 5.14.x had several regressions regarding eof (and a few others) (gets set below)
-our $CE; # CE="can't eof()", Perl <5.12 doesn't support eof() on tied filehandles (gets set below)
-our $FL = undef; # FL="First Line"
-# Apparently there are some versions of Perl on Win32 where the following two appear to work slightly differently.
-# I've seen differing results on different systems and I'm not sure why, so I set it dynamically... not pretty, but this test isn't critical.
-if ( $^O eq 'MSWin32' && $] ge '5.014' && $] lt '5.018' )
-	{ $FL = $.; $FE = defined($.) }
-
 BEGIN { use_ok('Tie::Handle::Argv') }
 
 sub testboth {
@@ -61,51 +92,37 @@ sub testboth {
 	}
 	{
 		local (*ARGV, $.);
-		local $CE = $] lt '5.012';
-		local $BE = $] ge '5.014' && $] lt '5.016';
 		tie *ARGV, 'Tie::Handle::Argv';
 		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
 		subtest "$name - tied" => $sub;
 		$osi and $osi->restore;
 		untie *ARGV;
 	}
-	return;
 }
 
-testboth 'restart with emptied @ARGV (STDIN)' => sub {
-	plan $^O eq 'MSWin32' ? (skip_all => 'STDIN tests don\'t work yet on Windows') : (tests=>2);
+testboth 'restart with emptied @ARGV (STDIN)' => sub { plan tests=>2;
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
 	@ARGV = @tf;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
-	SKIP: {
-		skip "eof() not supported on tied handles on Perl<5.12", 1 if $CE;
-		ok !eof(), 'eof() is false';
-	}
+	ok !eof(), 'eof() is false';
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, $FE           ],
+		[[@tf],    undef,  !!0, undef, !!1           ],
 		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Fo\n"   ],
 		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Br"     ],
 		[[],       $tf[1], !!1, 3,     !!0, "Qz\n"   ],
 		[[],       $tf[1], !!1, 4,     !!1, "Bz\n"   ],
-		[[],       $tf[1], !!0, 4,     $BE?!!0:!!1   ],
-		$CE ? [[], $tf[1], !!0, 4,     $BE?!!0:!!1   ]
-		    : [[], '-',    !!1, 0,     !!0           ],
+		[[],       $tf[1], !!0, 4,     !!1           ],
+		[[],       '-',    !!1, 0,     !!0           ],
 		[[],       '-',    !!1, 1,     !!0, "Hello\n"],
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
-		[[],       '-',    !!0, 2,     $BE?!!0:!!1   ],
+		[[],       '-',    !!0, 2,     !!1           ],
 	], 'states' or diag explain \@states;
 }, {stdin=>"Hello\nWorld"};
-
-my @details = Test::More->builder->details;
-for my $i (0..$#details) {
-	diag "Passing TO"."DO Test #".($i+1).": ", explain($details[$i]{name})
-		if $details[$i]{type} eq 'to'.'do' && $details[$i]{actual_ok};
-}
 
 done_testing;
