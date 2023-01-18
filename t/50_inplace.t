@@ -591,22 +591,22 @@ subtest '-i in import list' => sub { plan tests=>7;
 	local (*ARGV, *ARGVOUT, $., $^I);  ## no critic (RequireInitializationForLocalVars)
 	my @tf = (newtempfn("XX\nYY\n"), newtempfn("ABC\nDEF\nGHI"));
 	@ARGV = @tf;  ## no critic (RequireLocalizedPunctuationVars)
-	ok !defined $File::Replace::GlobalInplace, 'GlobalInplace not set yet';  ## no critic (ProhibitPackageVars)
+	ok !defined $File::Replace::Inplace::GlobalInplace, 'GlobalInplace not set yet';  ## no critic (ProhibitPackageVars)
 	File::Replace->import('-i');
-	ok  defined $File::Replace::GlobalInplace, 'GlobalInplace is now set';  ## no critic (ProhibitPackageVars)
+	ok  defined $File::Replace::Inplace::GlobalInplace, 'GlobalInplace is now set';  ## no critic (ProhibitPackageVars)
 	while (<>) {
 		print "$ARGV:$.:".lc;
 	}
 	is slurp($tf[0]), "$tf[0]:1:xx\n$tf[0]:2:yy\n", 'file 1 correct';
 	is slurp($tf[1]), "$tf[1]:3:abc\n$tf[1]:4:def\n$tf[1]:5:ghi", 'file 2 correct';
-	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
+	$File::Replace::Inplace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
 	is @ARGV, 0, '@ARGV empty';
 	# a couple more checks for code coverage
 	File::Replace->import('-D');
-	is undef, $File::Replace::GlobalInplace, 'lone debug flag has no effect';  ## no critic (ProhibitPackageVars)
+	is undef, $File::Replace::Inplace::GlobalInplace, 'lone debug flag has no effect';  ## no critic (ProhibitPackageVars)
 	like exception {File::Replace->import('-i','-D','-i.bak')},
 		qr/\bmore than one -i\b/, 'multiple -i\'s fails';
-	$File::Replace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
+	$File::Replace::Inplace::GlobalInplace = undef;  ## no critic (ProhibitPackageVars)
 };
 
 subtest 'cleanup' => sub { plan tests=>1; # mostly just to make code coverage happy
