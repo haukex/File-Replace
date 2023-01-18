@@ -1,7 +1,7 @@
 
 =head1 Name
 
-Tie::Handle::Inplace - Emulation of Perl's C<-i> switch via L<File::Replace|File::Replace>
+File::Replace::Inplace - Emulation of Perl's C<-i> switch via L<File::Replace|File::Replace>
 
 =head1 Synopsis
 
