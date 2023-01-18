@@ -35,18 +35,20 @@ use Tie::Handle::Argv;
 	sub DESTROY { return shift->restore }
 }
 
-sub newtempfn {
-	my $content = shift;
-	my ($fh,$fn) = tempfile(UNLINK=>1);
-	print $fh $content;
-	close $fh;
-	return $fn;
-}
-
 my $testsub = sub { plan tests=>2;
-	my @tempfiles = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
-	my @states;
+	
+	my @tempfiles;
+	my ($fh,$fn) = tempfile(UNLINK=>1);
+	print $fh "Fo\nBr";
+	close $fh;
+	push @tempfiles, $fn;
+	($fh,$fn) = tempfile(UNLINK=>1);
+	print $fh "Qz\nBz\n";
+	close $fh;
+	push @tempfiles, $fn;
+	
 	@ARGV = @tempfiles;
+	my @states;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
