@@ -7,10 +7,11 @@ use Carp;
 # THIS IS A BOILED DOWN VERSION OF https://github.com/haukex/File-Replace/blob/6ac1544/lib/Tie/Handle/Argv.pm
 
 sub TIEHANDLE {
-	return {
+	my $class = shift;
+	return bless {
 		__innerhandle => \do{local*HANDLE;*HANDLE},
 		__lineno => undef,  # also keeps state: undef = not currently active, defined = active
-	};
+	}, $class;
 }
 
 sub FILENO { fileno shift->{__innerhandle} }
@@ -22,8 +23,8 @@ sub OPEN {
 }
 
 sub _close {
-	my ($self, $keep_lineno) = shift;
-	my $rv = close shift->{__innerhandle};
+	my ($self, $keep_lineno) = @_;
+	my $rv = close $self->{__innerhandle};
 	$self->{__lineno} = 0 unless $keep_lineno;
 	$. = $self->{__lineno};
 	return $rv;
@@ -59,7 +60,7 @@ sub READLINE {
 			# current file is at EOF, advance
 			$self->_advance or last RL_LINE;
 		}
-		my $line = scalar readline shift->{__innerhandle};
+		my $line = scalar readline $self->{__innerhandle};
 		last unless defined $line;
 		push @out, $line;
 		$. = ++$self->{__lineno};
@@ -76,12 +77,12 @@ sub EOF {
 	# and 2 in the very special case that the tied filehandle is ARGV
 	# and eof is called with an empty parameter list, e.g. eof()."
 	if ( @_ && $_[0]==2 ) {
-		while ( eof shift->{__innerhandle} ) {  # current file is at EOF, peek
+		while ( eof $self->{__innerhandle} ) {  # current file is at EOF, peek
 			return !!1 unless $self->_advance("peek");  # could not peek => EOF
 		}
 		return !!0;  # not at EOF
 	}
-	return eof shift->{__innerhandle};
+	return eof $self->{__innerhandle};
 }
 
 sub DESTROY {
