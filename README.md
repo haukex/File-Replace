@@ -1,14 +1,14 @@
 File-Replace-Fancy
 ==================
 
-This is the distribution of the Perl module
-[`File::Replace::Fancy`](https://metacpan.org/pod/File::Replace::Fancy).
+This is the distribution of the Perl module `File::Replace::Fancy`,
+an extension of the module
+[`File::Replace`](https://metacpan.org/pod/File::Replace).
 
 It is a Perl extension providing a fancier interface to `File::Replace`.
 
-Please see the module's documentation (POD) for details (try the command
-`perldoc lib/File/Replace/Fancy.pm`) and the file `Changes` for version
-information.
+Please see the documentation of `File::Replace` for details
+and the file `Changes` for version information.
 
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace-Fancy.svg)](https://cpants.cpanauthors.org/dist/File-Replace-Fancy)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace-Fancy.svg)](http://matrix.cpantesters.org/?dist=File-Replace-Fancy)
