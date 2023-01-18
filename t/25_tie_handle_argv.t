@@ -44,9 +44,9 @@ sub newtempfn {
 }
 
 my $testsub = sub { plan tests=>2;
-	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
+	my @tempfiles = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
-	@ARGV = @tf;
+	@ARGV = @tempfiles;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
@@ -55,16 +55,18 @@ my $testsub = sub { plan tests=>2;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof, $_] while <>;
 	push @states, [[@ARGV], $ARGV, defined(fileno ARGV), $., eof];
 	is_deeply \@states, [
-		[[@tf],    undef,  !!0, undef, !!1           ],
-		[[$tf[1]], $tf[0], !!1, 1,     !!0, "Fo\n"   ],
-		[[$tf[1]], $tf[0], !!1, 2,     !!1, "Br"     ],
-		[[],       $tf[1], !!1, 3,     !!0, "Qz\n"   ],
-		[[],       $tf[1], !!1, 4,     !!1, "Bz\n"   ],
-		[[],       $tf[1], !!0, 4,     !!1           ],
-		[[],       '-',    !!1, 0,     !!0           ],
-		[[],       '-',    !!1, 1,     !!0, "Hello\n"],
-		[[],       '-',    !!1, 2,     !!1, "World"  ],
-		[[],       '-',    !!0, 2,     !!1           ],
+	    #                                defined(fileno ARGV)
+		# @ARGV           $ARGV          |    $.     eof  $_
+		[[@tempfiles],    undef,         !!0, undef, !!1           ],
+		[[$tempfiles[1]], $tempfiles[0], !!1, 1,     !!0, "Fo\n"   ],
+		[[$tempfiles[1]], $tempfiles[0], !!1, 2,     !!1, "Br"     ],
+		[[],              $tempfiles[1], !!1, 3,     !!0, "Qz\n"   ],
+		[[],              $tempfiles[1], !!1, 4,     !!1, "Bz\n"   ],
+		[[],              $tempfiles[1], !!0, 4,     !!1           ],
+		[[],              '-',           !!1, 0,     !!0           ],
+		[[],              '-',           !!1, 1,     !!0, "Hello\n"],
+		[[],              '-',           !!1, 2,     !!1, "World"  ],
+		[[],              '-',           !!0, 2,     !!1           ],
 	], 'states' or diag explain \@states;
 };
 
