@@ -126,7 +126,7 @@ is the same as
 
 =head2 C<replace2>
 
-**Note** As of version 0.16, if you want to use this function, you must
+B<Note:> As of version 0.16, if you want to use this function, you must
 install L<File::Replace::Fancy|File::Replace::Fancy>!
 
  use File::Replace 'replace2';
@@ -155,7 +155,7 @@ these handles as this may lead to confusion.
 
 =head2 C<replace>
 
-**Note** As of version 0.16, if you want to use this function, you must
+B<Note:> As of version 0.16, if you want to use this function, you must
 install L<File::Replace::Fancy|File::Replace::Fancy>!
 
  use File::Replace 'replace';
@@ -193,8 +193,8 @@ confusion.
 
 =head2 C<inplace>
 
-**Warning:** As of version 0.16, if you want to use this function, you
-must install the **experimental** module
+B<Warning:> As of version 0.16, if you want to use this function, you
+must install the B<experimental> module
 L<File::Replace::Inplace|File::Replace::Inplace>.
 
 This is a shorthand for the constructor of
