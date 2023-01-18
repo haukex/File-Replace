@@ -215,11 +215,6 @@ L<prototype|perlfunc/prototype> function as of Perl 5.26. Note that C<print>
 and C<printf> get special handling by Perl and therefore do not report a
 standard prototype.
 
-=head1 See Also
-
-L<Tie::Handle::Argv> (part of this distribution),
-a base class for tying to Perl's magic C<ARGV> handle.
-
 =head1 Author, Copyright, and License
 
 Copyright (c) 2017-2023 Hauke Daempfling (haukex@zero-g.net)
