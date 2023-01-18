@@ -63,11 +63,14 @@ BEGIN {
 	);
 }
 
-use Test::More $AUTHOR_TESTS ? (tests=>2*@PERLFILES)
+use Test::More $AUTHOR_TESTS ? (tests=>2*@PERLFILES+1)
 	: (skip_all=>'author Perl::Critic tests (set $ENV{TIE_HANDLE_BASE_AUTHOR_TESTS} to enable)');
 
 use Test::Perl::Critic -profile=>catfile($FindBin::Bin,'perlcriticrc');
 use Test::MinimumVersion;
+use Test::DistManifest;
+
+subtest 'MANIFEST' => sub { manifest_ok() };
 
 my @tasks;
 for my $file (@PERLFILES) {
