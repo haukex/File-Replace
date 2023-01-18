@@ -64,8 +64,7 @@ WriteMakefile(
 		'Exporter'               => 0,
 	},
 	TEST_REQUIRES  => {
-		# CPAN
-		'IPC::Run3::Shell'       => '0.56',
+		# CPAN - none
 		# Perl core modules
 		'Encode'                 => 0,
 		'Test::More'             => '1.302096',
