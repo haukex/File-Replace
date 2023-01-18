@@ -12,5 +12,6 @@ t/12_create.t
 t/13_copy.t
 t/90_author_critic.t
 t/91_author_pod.t
+t/cover_suite.sh
 t/File_Replace_Testlib.pm
 t/perlcriticrc
