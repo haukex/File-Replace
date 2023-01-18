@@ -1,30 +1,25 @@
 #!/usr/bin/env perl
 use warnings;
 use strict;
+use warnings FATAL => qw/ io inplace /;
+use File::Temp qw/tempfile/;
+use Test::More tests=>2;
+use Tie::Handle::Argv;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
-
-use Carp;
-use File::Temp qw/tempfile/;
 
 {
 	package OverrideStdin;
 	# This overrides STDIN with a file, using the same code that
 	# IPC::Run3 uses, which seems to work well. Cleanup is performed
 	# on object destruction.
-	use Carp;
 	use File::Temp qw/tempfile/;
 	use POSIX qw/dup dup2/;
-	our $DEBUG;
-	BEGIN { $DEBUG = 0 }
 	sub new {
-		my $class = shift;
-		croak "$class->new: bad nr of args" unless @_==1;
-		my $string = shift;
+		my ($class, $string) = @_;
 		my $fh = tempfile();
 		print $fh $string;
 		seek $fh, 0, 0 or die "seek: $!";
-		$DEBUG and print STDERR "Overriding STDIN\n";
 		my $saved_fd0 = dup( 0 ) or die "dup(0): $!";
 		dup2( fileno $fh, 0 ) or die "save dup2: $!";
 		return bless \$saved_fd0, $class;
@@ -33,51 +28,22 @@ use File::Temp qw/tempfile/;
 		my $self = shift;
 		my $saved_fd0 = $$self;
 		return unless defined $saved_fd0;
-		$DEBUG and print STDERR "Restoring STDIN\n";
 		dup2( $saved_fd0, 0 ) or die "restore dup2: $!";
 		POSIX::close( $saved_fd0 ) or die "close saved: $!";
 		$$self = undef;
-		return 1;
 	}
 	sub DESTROY { return shift->restore }
 }
 
-
 sub newtempfn {
 	my $content = shift;
 	my ($fh,$fn) = tempfile(UNLINK=>1);
-	print $fh $content or croak "print $fn: $!";
-	close $fh or croak "close $fn: $!";
+	print $fh $content;
+	close $fh;
 	return $fn;
 }
 
-use Test::More;
-
-use warnings FATAL => qw/ io inplace /;
-BEGIN { use_ok('Tie::Handle::Argv') }
-
-sub testboth {
-	# test that both regular ARGV and our tied base class act the same
-	die "bad nr of args" unless @_==2 || @_==3;
-	my ($name, $sub, $args) = @_;
-	my $stdin = delete $$args{stdin};
-	{
-		local (*ARGV, $.);
-		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
-		subtest "$name - untied" => $sub;
-		$osi and $osi->restore;
-	}
-	{
-		local (*ARGV, $.);
-		tie *ARGV, 'Tie::Handle::Argv';
-		my $osi = defined($stdin) ? OverrideStdin->new($stdin) : undef;
-		subtest "$name - tied" => $sub;
-		$osi and $osi->restore;
-		untie *ARGV;
-	}
-}
-
-testboth 'restart with emptied @ARGV (STDIN)' => sub { plan tests=>2;
+my $testsub = sub { plan tests=>2;
 	my @tf = (newtempfn("Fo\nBr"), newtempfn("Qz\nBz\n"));
 	my @states;
 	@ARGV = @tf;
@@ -100,9 +66,23 @@ testboth 'restart with emptied @ARGV (STDIN)' => sub { plan tests=>2;
 		[[],       '-',    !!1, 2,     !!1, "World"  ],
 		[[],       '-',    !!0, 2,     !!1           ],
 	], 'states' or diag explain \@states;
-}, {stdin=>"Hello\nWorld"};
+};
 
-done_testing;
+# test that both regular ARGV and our tied base class act the same
+{
+	local (*ARGV, $.);
+	my $osi = OverrideStdin->new("Hello\nWorld");
+	subtest "test with untied ARGV" => $testsub;
+	$osi->restore;
+}
+{
+	local (*ARGV, $.);
+	tie *ARGV, 'Tie::Handle::Argv';
+	my $osi = OverrideStdin->new("Hello\nWorld");
+	subtest "test with tied ARGV" => $testsub;
+	$osi->restore;
+	untie *ARGV;
+}
 
 __END__
 
