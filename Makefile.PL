@@ -59,6 +59,7 @@ WriteMakefile(
 	TEST_REQUIRES  => {
 		# CPAN
 		'IPC::Run3::Shell'       => '0.56',
+		'Tie::Handle::Base'      => '0.16',
 		# Perl core modules
 		'Encode'                 => 0,
 		'Test::More'             => '1.302096',
