@@ -1,6 +1,6 @@
 Changes
-lib/File/Replace/Fancy.pm
 lib/File/Replace/DualHandle.pm
+lib/File/Replace/Fancy.pm
 lib/File/Replace/SingleHandle.pm
 LICENSE.txt
 Makefile.PL

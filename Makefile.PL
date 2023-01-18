@@ -5,7 +5,7 @@ WriteMakefile(
 	NAME           => 'File::Replace::Fancy',
 	AUTHOR         => 'Hauke D <haukex@zero-g.net>',
 	LICENSE        => 'gpl_3',
-	VERSION_FROM   => 'lib/File/Replace/Fancy.pm', # finds $VERSION
+	VERSION        => '0.16',
 	ABSTRACT_FROM  => 'lib/File/Replace/Fancy.pm',
 	MIN_PERL_VERSION => '5.8.1',
 	META_MERGE     => {

@@ -57,12 +57,9 @@ use File::Glob 'bsd_glob';
 our @PERLFILES;
 BEGIN {
 	@PERLFILES = (
-		catfile($FindBin::Bin,qw/ .. lib File Replace.pm /),
-		catfile($FindBin::Bin,qw/ .. lib File Replace Inplace.pm /),
+		catfile($FindBin::Bin,qw/ .. lib File Replace Fancy.pm /),
 		catfile($FindBin::Bin,qw/ .. lib File Replace DualHandle.pm /),
 		catfile($FindBin::Bin,qw/ .. lib File Replace SingleHandle.pm /),
-		catfile($FindBin::Bin,qw/ .. lib Tie Handle Base.pm /),
-		catfile($FindBin::Bin,qw/ .. lib Tie Handle Argv.pm /),
 		bsd_glob("$FindBin::Bin/*.t"),
 		bsd_glob("$FindBin::Bin/*.pm"),
 	);

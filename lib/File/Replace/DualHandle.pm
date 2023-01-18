@@ -9,6 +9,8 @@ use Scalar::Util qw/blessed/;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see the bottom of this file
 
+our $VERSION = '0.16';
+
 ## no critic (RequireFinalReturn, RequireArgUnpacking)
 
 BEGIN {
@@ -92,7 +94,7 @@ C<File::Replace::replace>, please see L<File::Replace> for details.
 
 =head1 Author, Copyright, and License
 
-Copyright (c) 2017 Hauke Daempfling (haukex@zero-g.net)
+Copyright (c) 2017-2023 Hauke Daempfling (haukex@zero-g.net)
 at the Leibniz Institute of Freshwater Ecology and Inland Fisheries (IGB),
 Berlin, Germany, L<http://www.igb-berlin.de/>
 
