@@ -11,7 +11,7 @@ File::Replace::Fancy - Perl extension that extends the File::Replace module
 
 =head1 Description
 
-**This is a stub module.** You don't need to C<use> it.
+B<This is a stub module.> You don't need to C<use> it.
 Please see L<File::Replace> for the features provided by this distribution.
 
 =head1 Author, Copyright, and License
