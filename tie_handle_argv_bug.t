@@ -78,6 +78,7 @@ sub restore_stdin {
 	my $saved_fd0 = shift;
 	dup2( $saved_fd0, 0 ) or die "restore dup2: $!";
 	POSIX::close( $saved_fd0 ) or die "close saved: $!";
+	STDIN->clearerr;
 }
 
 { # test regular ARGV to confirm its behavior matches the tied ARGV
