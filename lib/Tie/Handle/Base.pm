@@ -8,7 +8,7 @@ use Scalar::Util qw/blessed/;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see Base.pod
 
-our $VERSION = '0.16';
+our $VERSION = '0.18';
 
 ## no critic (RequireFinalReturn, RequireArgUnpacking)
 
