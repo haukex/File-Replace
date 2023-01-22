@@ -48,7 +48,7 @@ system's documentation and search the Internet for "atomic rename" for more
 details. This module's job is to perform the C<rename>, and it can make
 B<no guarantees> as to whether it will be atomic or not.
 
-=head2 Notice
+=head2 Important Notice
 
 As of version 0.16, the distribution of this module has been split into
 several distributions: See the documentation of L</replace>,
@@ -56,7 +56,7 @@ L</replace2>, and L</inplace> for details.
 
 =head2 Version
 
-This documentation describes version 0.16 of this module.
+This documentation describes version 0.18 of this module.
 
 =head1 Constructors and Overview
 
