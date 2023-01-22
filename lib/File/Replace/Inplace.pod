@@ -52,7 +52,7 @@ See also L<File::Replace/inplace> for a description of the C<-i> argument
 to L<File::Replace|File::Replace>, which can be used for oneliners as
 shown in the L</Synopsis>.
 
-This documentation describes version 0.16 of this module.
+This documentation describes version 0.18 of this module.
 
 =head2 Experimental Status of this Module
 

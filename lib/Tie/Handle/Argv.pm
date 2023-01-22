@@ -6,7 +6,7 @@ use Carp;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see Argv.pod
 
-our $VERSION = '0.16';
+our $VERSION = '0.18';
 
 require Tie::Handle::Base;
 our @ISA = qw/ Tie::Handle::Base /;  ## no critic (ProhibitExplicitISA)

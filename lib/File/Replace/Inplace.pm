@@ -6,7 +6,7 @@ use Carp;
 
 # For AUTHOR, COPYRIGHT, AND LICENSE see Inplace.pod
 
-our $VERSION = '0.16';
+our $VERSION = '0.18';
 
 our @CARP_NOT = qw/ File::Replace /;
 

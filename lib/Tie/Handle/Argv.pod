@@ -165,7 +165,7 @@ and for L<Tie::Handle::Base|Tie::Handle::Base>.
 
 =back
 
-This documentation describes version 0.16 of this module.
+This documentation describes version 0.18 of this module.
 
 =head2 Warning About Perls Older Than v5.16 and Windows
 
