@@ -123,6 +123,7 @@ testboth 'basic test' => sub { plan tests=>9;
 testboth 'basic test with eof()' => sub {
 	if ($CE) { plan skip_all=>"eof() not supported on tied handles on Perl<5.12" }
 	elsif ($^O eq 'MSWin32') { plan skip_all=>"eof() acts differently on Win32" }
+	elsif ($^O eq 'cygwin') { plan skip_all=>"this test doesn't work on cygwin" }
 	else { plan tests=>9 }
 	my @tf = (newtempfn("Foo\nBar"), newtempfn("Quz\nBaz\n"));
 	local @ARGV = @tf; # this also tests "local"ization after constructing the object
