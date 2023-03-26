@@ -19,8 +19,10 @@ Important Note About the Repository
 
 Because this module's code was forked from the original File-Replace
 distribution and repository, its code is still contained in the
-`File-Replace` repository, **branch `reinplace`**. If you're
-checking out this suite of modules from Git, I suggest the following:
+`File-Replace` repository, **branch `reinplace`**, which you can find
+at **<https://github.com/haukex/File-Replace/tree/reinplace>**.
+
+If you're checking out this suite of modules from Git, I suggest the following:
 
 	git clone --branch tiehandle https://github.com/haukex/File-Replace.git Tie-Handle-Base
 	git clone --branch onlyreplace https://github.com/haukex/File-Replace.git File-Replace
