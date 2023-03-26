@@ -21,14 +21,14 @@ WriteMakefile(
 			},
 		},
 		resources    => {
-			homepage    => 'https://bitbucket.org/haukex/file-replace-inplace',
+			homepage    => 'https://github.com/haukex/File-Replace',
 			repository  => {
 				type       => 'git',
-				url        => 'https://bitbucket.org/haukex/file-replace-inplace.git',
-				web        => 'https://bitbucket.org/haukex/file-replace-inplace',
+				url        => 'https://github.com/haukex/File-Replace.git',
+				web        => 'https://github.com/haukex/File-Replace',
 			},
 			bugtracker  => {
-				web        => 'https://bitbucket.org/haukex/file-replace-inplace/issues',
+				web        => 'https://github.com/haukex/File-Replace/issues',
 				#mailto     => '',
 			},
 		},
