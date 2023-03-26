@@ -17,6 +17,19 @@ information.
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
 
+WARNING
+-------
+
+This branch of the repository, `master`, is no longer being developed.
+This distribution was split into four separate distributions due to
+<https://github.com/Perl/perl5/issues/20207>. They can be checked out
+as follows:
+
+	git clone --branch tiehandle https://github.com/haukex/File-Replace.git Tie-Handle-Base
+	git clone --branch onlyreplace https://github.com/haukex/File-Replace.git File-Replace
+	git clone --branch fancyreplace https://github.com/haukex/File-Replace.git File-Replace-Fancy
+	git clone --branch reinplace https://github.com/haukex/File-Replace.git File-Replace-Inplace
+
 Installation
 ------------
 
