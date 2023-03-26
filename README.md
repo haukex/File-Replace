@@ -22,8 +22,14 @@ WARNING
 
 This branch of the repository, `master`, is no longer being developed.
 This distribution was split into four separate distributions due to
-<https://github.com/Perl/perl5/issues/20207>. They can be checked out
-as follows:
+<https://github.com/Perl/perl5/issues/20207>:
+
+- <https://github.com/haukex/File-Replace/tree/tiehandle>
+- <https://github.com/haukex/File-Replace/tree/onlyreplace>
+- <https://github.com/haukex/File-Replace/tree/fancyreplace>
+- <https://github.com/haukex/File-Replace/tree/reinplace>
+
+They can be checked out as follows:
 
 	git clone --branch tiehandle https://github.com/haukex/File-Replace.git Tie-Handle-Base
 	git clone --branch onlyreplace https://github.com/haukex/File-Replace.git File-Replace
