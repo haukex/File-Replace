@@ -1,4 +1,4 @@
-name: Mirror this repo to a remote server
+name: Mirror onlyreplace branch to Bitbucket
 on:
   push:
     branches:
@@ -11,5 +11,5 @@ jobs:
         with:
           fetch-depth: 0
       - run: git remote add dest1 https://x-token-auth:${{ secrets.BB_MIRROR_TOKEN_ONLYREPLACE }}@bitbucket.org/haukex/file-replace.git
-      - run: git fetch dest1
-      - run: git push dest1
+      - run: git fetch dest1 onlyreplace
+      - run: git push dest1 onlyreplace

@@ -1,4 +1,4 @@
-name: Mirror this repo to a remote server
+name: Mirror tiehandle branch to Bitbucket
 on:
   push:
     branches:
@@ -11,5 +11,5 @@ jobs:
         with:
           fetch-depth: 0
       - run: git remote add dest1 https://x-token-auth:${{ secrets.BB_MIRROR_TOKEN_TIEHANDLE }}@bitbucket.org/haukex/tie-handle-base.git
-      - run: git fetch dest1
-      - run: git push dest1
+      - run: git fetch dest1 tiehandle
+      - run: git push dest1 tiehandle
