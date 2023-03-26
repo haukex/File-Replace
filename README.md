@@ -19,8 +19,8 @@ Important Note About the Repository
 
 Because this module's code was forked from the original File-Replace
 distribution and repository, its code is still contained in the
-`File-Replace` repository, **branch `tiehandle`**, which you can find
-at **<https://github.com/haukex/File-Replace/tree/tiehandle>**.
+`File-Replace` repository, **branch `tiehandle`**, which you can
+find at **<https://github.com/haukex/File-Replace/tree/tiehandle>**.
 
 If you're checking out this suite of modules from Git, I suggest the following:
 
