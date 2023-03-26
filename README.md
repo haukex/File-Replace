@@ -14,6 +14,19 @@ information.
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/Tie-Handle-Base.svg)](https://cpants.cpanauthors.org/dist/Tie-Handle-Base)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/Tie-Handle-Base.svg)](http://matrix.cpantesters.org/?dist=Tie-Handle-Base)
 
+Important Note About the Repository
+-----------------------------------
+
+Because this module's code was forked from the original File-Replace
+distribution and repository, its code is still contained in the
+`File-Replace` repository, **branch `tiehandle`**. If you're
+checking out this suite of modules from Git, I suggest the following:
+
+	git clone --branch tiehandle https://github.com/haukex/File-Replace.git Tie-Handle-Base
+	git clone --branch onlyreplace https://github.com/haukex/File-Replace.git File-Replace
+	git clone --branch fancyreplace https://github.com/haukex/File-Replace.git File-Replace-Fancy
+	git clone --branch reinplace https://github.com/haukex/File-Replace.git File-Replace-Inplace
+
 Installation
 ------------
 
