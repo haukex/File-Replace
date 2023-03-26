@@ -10,6 +10,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - run: git remote add dest1 https://x-token-auth:${{ secrets.BB_MIRROR_TOKEN_ONLYREPLACE }}@bitbucket.org/haukex/file-replace-inplace.git
+      - run: git remote add dest1 https://x-token-auth:${{ secrets.BB_MIRROR_TOKEN_ONLYREPLACE }}@bitbucket.org/haukex/file-replace.git
       - run: git fetch dest1
       - run: git push dest1
