@@ -23,14 +23,14 @@ WriteMakefile(
 				],
 		},
 		resources    => {
-			homepage    => 'https://bitbucket.org/haukex/file-replace-fancy',
+			homepage    => 'https://github.com/haukex/File-Replace',
 			repository  => {
 				type       => 'git',
-				url        => 'https://bitbucket.org/haukex/file-replace-fancy.git',
-				web        => 'https://bitbucket.org/haukex/file-replace-fancy',
+				url        => 'https://github.com/haukex/File-Replace.git',
+				web        => 'https://github.com/haukex/File-Replace',
 			},
 			bugtracker  => {
-				web        => 'https://bitbucket.org/haukex/file-replace-fancy/issues',
+				web        => 'https://github.com/haukex/File-Replace/issues',
 				#mailto     => '',
 			},
 		},

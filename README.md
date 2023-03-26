@@ -13,6 +13,19 @@ and the file `Changes` for version information.
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace-Fancy.svg)](https://cpants.cpanauthors.org/dist/File-Replace-Fancy)
 [![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace-Fancy.svg)](http://matrix.cpantesters.org/?dist=File-Replace-Fancy)
 
+Important Note About the Repository
+-----------------------------------
+
+Because this module's code was forked from the original File-Replace
+distribution and repository, its code is still contained in the
+`File-Replace` repository, **branch `fancyreplace`**. If you're
+checking out this suite of modules from Git, I suggest the following:
+
+	git clone --branch tiehandle https://github.com/haukex/File-Replace.git Tie-Handle-Base
+	git clone --branch onlyreplace https://github.com/haukex/File-Replace.git File-Replace
+	git clone --branch fancyreplace https://github.com/haukex/File-Replace.git File-Replace-Fancy
+	git clone --branch reinplace https://github.com/haukex/File-Replace.git File-Replace-Inplace
+
 Installation
 ------------
 
