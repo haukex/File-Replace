@@ -12,7 +12,7 @@ Please see the module's documentation (POD) for details (try the command
 information.
 
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace.svg)](https://cpants.cpanauthors.org/dist/File-Replace)
-[![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
+[![CPAN Testers](https://haukex.github.io/my-badges/File-Replace.svg)](http://matrix.cpantesters.org/?dist=File-Replace)
 
 Important Note About the Repository
 -----------------------------------
