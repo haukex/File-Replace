@@ -12,7 +12,7 @@ Please see the module's documentation (POD) for details (try the command
 information.
 
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/Tie-Handle-Base.svg)](https://cpants.cpanauthors.org/dist/Tie-Handle-Base)
-[![CPAN Testers](https://badges.zero-g.net/cpantesters/Tie-Handle-Base.svg)](http://matrix.cpantesters.org/?dist=Tie-Handle-Base)
+[![CPAN Testers](https://haukex.github.io/my-badges/Tie-Handle-Base.svg)](http://matrix.cpantesters.org/?dist=Tie-Handle-Base)
 
 Important Note About the Repository
 -----------------------------------
