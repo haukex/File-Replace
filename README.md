@@ -11,7 +11,7 @@ Please see the documentation of `File::Replace` for details
 and the file `Changes` for version information.
 
 [![Kwalitee Score](https://cpants.cpanauthors.org/dist/File-Replace-Fancy.svg)](https://cpants.cpanauthors.org/dist/File-Replace-Fancy)
-[![CPAN Testers](https://badges.zero-g.net/cpantesters/File-Replace-Fancy.svg)](http://matrix.cpantesters.org/?dist=File-Replace-Fancy)
+[![CPAN Testers](https://haukex.github.io/my-badges/File-Replace-Fancy.svg)](http://matrix.cpantesters.org/?dist=File-Replace-Fancy)
 
 Important Note About the Repository
 -----------------------------------
